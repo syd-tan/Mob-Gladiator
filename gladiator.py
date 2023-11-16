@@ -1,0 +1,290 @@
+from __future__ import print_function
+from __future__ import division
+
+# ------------------------------------------------------------------------------------------------
+# Copyright (c) 2016 Microsoft Corporation
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+# associated documentation files (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge, publish, distribute,
+# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# ------------------------------------------------------------------------------------------------
+
+# Demo of reward for damaging mobs - create an arena filled with pigs and sheep,
+# and reward the agent positively for attacking sheep, and negatively for attacking pigs.
+# Using this reward signal to train the agent is left as an exercise for the reader...
+# this demo just uses ObservationFromRay and ObservationFromNearbyEntities to determine
+# when and where to attack.
+
+from builtins import range
+from past.utils import old_div
+import MalmoPython
+import datetime
+import random
+import time
+import json
+import random
+import math
+import malmoutils
+
+from state import agent_state
+
+malmoutils.fix_print()
+
+agent_host = MalmoPython.AgentHost()
+malmoutils.parse_command_line(agent_host)
+
+# Task parameters:
+ARENA_WIDTH = 20
+ARENA_BREADTH = 20
+
+
+def getCorner(index, top, left, expand=0, y=0):
+    """Return part of the XML string that defines the requested corner"""
+    x = (
+        str(-(expand + old_div(ARENA_WIDTH, 2)))
+        if left
+        else str(expand + old_div(ARENA_WIDTH, 2))
+    )
+    z = (
+        str(-(expand + old_div(ARENA_BREADTH, 2)))
+        if top
+        else str(expand + old_div(ARENA_BREADTH, 2))
+    )
+    return f'x{index}="{x}" y{index}="{y}" z{index}="{z}"'
+
+
+def getMissionXML(summary, msPerTick):
+    """Build an XML mission string."""
+    return f"""<?xml version="1.0" encoding="UTF-8" ?>
+    <Mission xmlns="http://ProjectMalmo.microsoft.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <About>
+            <Summary>{summary}</Summary>
+        </About>
+
+        <ModSettings>
+            <MsPerTick>{msPerTick}</MsPerTick>
+        </ModSettings>
+        <ServerSection>
+            <ServerInitialConditions>
+                <Time>
+                    <StartTime>18000</StartTime>
+                    <AllowPassageOfTime>false</AllowPassageOfTime>
+                </Time>
+                <AllowSpawning>false</AllowSpawning>
+                <AllowedMobs>Zombie Skeleton Spider Creeper</AllowedMobs>
+            </ServerInitialConditions>
+            <ServerHandlers>
+                <FlatWorldGenerator generatorString="3;1*minecraft:bedrock,7*minecraft:dirt,1*minecraft:grass;1;" />
+                <DrawingDecorator>
+                    <DrawCuboid {getCorner("1", True, True, expand=10, y=206)} {getCorner("2", False, False, y=215, expand=10)} type="stone"/>
+                    <DrawCuboid {getCorner("1", True, True, y=207)} {getCorner("2", False, False, y=215)} type="glass"/>
+                    <DrawCuboid {getCorner("1", True, True, y=207)} {getCorner("2", False, False, y=214)} type="air"/>
+                </DrawingDecorator>
+               <ServerQuitWhenAnyAgentFinishes />
+               <ServerQuitFromTimeUp timeLimitMs="60000"/>
+            </ServerHandlers>
+        </ServerSection>
+
+        <AgentSection mode="Survival">
+            <Name>Agent</Name>
+            <AgentStart>
+                <Placement x="0.5" y="207.0" z="0.5" pitch="20"/>
+                <Inventory>
+                    <InventoryItem type="wooden_sword" slot="0"/>
+                </Inventory>
+            </AgentStart>
+            <AgentHandlers>
+                <ContinuousMovementCommands turnSpeedDegs="420"/>
+                <ChatCommands />
+                <MissionQuitCommands/>
+                <ObservationFromRay/>
+                <RewardForDamagingEntity>
+                    <Mob type="Zombie" reward="1"/>
+                    <Mob type="Skeleton" reward="1"/>
+                    <Mob type="Creeper" reward="1"/>
+                    <Mob type="Spider" reward="1"/>
+                </RewardForDamagingEntity>
+                <ObservationFromNearbyEntities>
+                    <Range name="entities" xrange="{str(ARENA_WIDTH + 5)}" yrange="10" zrange="{str(ARENA_BREADTH + 5)}" />
+                </ObservationFromNearbyEntities>
+                <ObservationFromFullStats/>
+            </AgentHandlers>
+        </AgentSection>
+
+    </Mission>"""
+
+
+def wait_until_opponent_spawns(world_state):
+    while True:
+        time.sleep(0.1)
+        world_state = agent_host.getWorldState()
+        if world_state.observations:
+            observations = json.loads(world_state.observations[0].text)
+            if len(observations["entities"]) > 1:
+                return world_state
+
+def summon_mob(agent_host):
+    mobs = ["Skeleton", "Creeper", "Zombie", "Spider"]
+    chosen_mob = mobs[random.randint(0, len(mobs) - 1)]
+    x_coord = random.choice([random.uniform(-9.5, -6), random.uniform(6, 9.5)])
+    z_coord = random.choice([random.uniform(-9.5, -6), random.uniform(6, 9.5)])
+    agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord}")
+    return chosen_mob
+
+
+def initialize_mission(agent_host):
+    agent_host.sendCommand("chat /gamerule naturalRegeneration false")
+    return summon_mob(agent_host)
+
+def check_mission_over(agent_host, world_state):
+    observations_json = json.loads(world_state.observations[0].text)
+    if len(observations_json["entities"]) == 1:
+        agent_host.sendCommand("quit")
+        return True
+    return False
+
+
+def get_opponent_states(observations, entity_name):
+    for entity in observations["entities"]:
+        if entity["name"] == entity_name:
+            opponent_health = entity["life"]
+            pos_x, pos_y, pos_z = entity["x"], entity["y"], entity["z"]
+            return opponent_health, pos_x, pos_y, pos_z
+
+
+def get_agent_states(observations):
+    for entity in observations["entities"]:
+        if entity["name"] == "Agent":
+            agent_health = entity["life"]
+            vertical_motion = (
+                entity["motionY"] / abs(entity["motionY"])
+                if entity["motionY"] != 0
+                else 0
+            )
+            pos_x, pos_y, pos_z = entity["x"], entity["y"], entity["z"]
+            return agent_health, vertical_motion, pos_x, pos_y, pos_z
+
+
+def get_state(agent_host, world_state, enemy_mob, last_attack):
+    observations_json = json.loads(world_state.observations[0].text)
+    is_enemy_alive = any(entity["name"] == enemy_mob for entity in observations_json["entities"])
+    done = False
+    if is_enemy_alive:
+        mob_health, opp_pos_x, opp_pos_y, opp_pos_z = get_opponent_states(
+            observations_json, enemy_mob
+        )
+        agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(
+            observations_json
+        )
+        in_range = observations_json["LineOfSight"]["inRange"]
+        distance = math.sqrt(
+            math.pow(pos_x - opp_pos_x, 2)
+            + math.pow(pos_y - opp_pos_y, 2)
+            + math.pow(pos_z - opp_pos_z, 2)
+        )
+
+        attack_cooldown = 0
+        if last_attack:
+            attack_cooldown = last_attack - datetime.now()
+
+        gladiator_state = agent_state(
+            enemy=enemy_mob,
+            enemy_health=mob_health,
+            agent_health=agent_health,
+            vertical_motion=vertical_motion,
+            distance_from_enemy=distance,
+            attack_cooldown=attack_cooldown,
+            in_range=in_range,
+        )
+        return gladiator_state, done
+    else:
+        agent_host.sendCommand("quit")
+        done = True
+        return None, done
+
+
+# Add Minecraft Client
+my_client_pool = MalmoPython.ClientPool()
+my_client_pool.add(MalmoPython.ClientInfo("127.0.0.1", 10000))
+
+msPerTick = 50  # 50 ms per tick is default
+last_attack_time = None
+
+if agent_host.receivedArgument("test"):
+    num_reps = 1
+else:
+    num_reps = 30000
+
+for iRepeat in range(num_reps):
+    mission_xml = getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
+    my_mission = MalmoPython.MissionSpec(mission_xml, True)
+    my_mission_record = MalmoPython.MissionRecordSpec()
+    max_retries = 3
+    for retry in range(max_retries):
+        try:
+            # Attempt to start the mission:
+            agent_host.startMission(
+                my_mission, my_client_pool, my_mission_record, 0, "MobGladiator"
+            )
+            break
+        except RuntimeError as e:
+            if retry == max_retries - 1:
+                print("Error starting mission", e)
+                print("Is the game running?")
+                exit(1)
+            else:
+                time.sleep(2)
+
+    world_state = agent_host.getWorldState()
+    while not world_state.has_mission_begun:
+        time.sleep(0.1)
+        world_state = agent_host.getWorldState()
+
+    # set gamerule and spawn
+    enemy_mob = initialize_mission(agent_host)
+
+    # waits until the opponent fully spawn in order to be detected by malmo
+    world_state = wait_until_opponent_spawns(world_state)
+
+    # initialize mission settings
+    total_reward = 0
+    curr_state = get_state(agent_host, world_state, enemy_mob, last_attack_time)
+
+    # main loop
+    while world_state.is_mission_running:
+        world_state = agent_host.getWorldState()
+        if world_state.observations:
+            # action, last_attack_time = act(curr_state, last_attack_time)
+            next_state, done = get_state(agent_host, world_state, enemy_mob, last_attack_time)
+            # remember
+            # train
+            curr_state = next_state
+
+        if world_state.number_of_rewards_since_last_state > 0:
+            # Keep track of our total reward:
+            total_reward += world_state.rewards[-1].getValue()            
+
+    # mission has ended.
+    for error in world_state.errors:
+        print("Error:", error.text)
+    if world_state.number_of_rewards_since_last_state > 0:
+        # A reward signal has come in - see what it is:
+        total_reward += world_state.rewards[-1].getValue()
+
+    print()
+    print("=" * 41)
+    print("Total score this round:", total_reward)
+    print("=" * 41)
+    print()
+    time.sleep(1)  # Give the mod a little time to prepare for the next mission.
