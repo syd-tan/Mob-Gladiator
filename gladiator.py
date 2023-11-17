@@ -51,7 +51,7 @@ ARENA_WIDTH = 20
 ARENA_BREADTH = 20
 
 # Reward Constants
-REWARD_PER_DAMAGE_DEALT = 10
+REWARD_PER_DAMAGE_DEALT = 1
 REWARD_ENEMY_DEAD = 1000
 REWARD_PLAYER_DEATH = -3000
 REWARD_OUT_OF_TIME = -1000
@@ -145,6 +145,7 @@ def get_opponent_states(observations, entity_name):
             opponent_health = entity["life"]
             pos_x, pos_y, pos_z = entity["x"], entity["y"], entity["z"]
             return opponent_health, pos_x, pos_y, pos_z
+    return 0, 0, 0, 0
 
 
 def get_agent_states(observations):
@@ -160,66 +161,56 @@ def get_agent_states(observations):
             return agent_health, vertical_motion, pos_x, pos_y, pos_z
 
 
-def step(agent_host, world_state, curr_state, enemy_mob, next_cooldown_completion_time):
-    observations_json = json.loads(world_state.observations[0].text)
+def step(agent_host, world_state, curr_state, enemy_mob):
+    # TODO: Figure out permanent solution for final state if either player or mob dies
+    
+    obs_json = json.loads(world_state.observations[0].text)
     done = False
-    is_enemy_alive = any(
-        entity["name"] == enemy_mob for entity in observations_json["entities"]
+    agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(obs_json)
+
+    time_diff = int((curr_state.get_cooldown_completion_time() - datetime.now()).total_seconds()) if curr_state else 0
+    attack_cooldown_remaining = time_diff if time_diff > 0 else 0
+
+    mob_health, opp_pos_x, opp_pos_y, opp_pos_z = get_opponent_states(obs_json, enemy_mob)
+    in_range = obs_json["LineOfSight"]["inRange"]
+
+    distance = math.sqrt(
+        math.pow(pos_x - opp_pos_x, 2)
+        + math.pow(pos_y - opp_pos_y, 2)
+        + math.pow(pos_z - opp_pos_z, 2)
+    ) if mob_health != 0 else 0
+
+    next_state = agent_state(
+        enemy=enemy_mob,
+        enemy_health=mob_health,
+        agent_health=agent_health,
+        vertical_motion=vertical_motion,
+        distance_from_enemy=distance,
+        attack_cooldown_remaining=attack_cooldown_remaining,
+        in_range=in_range,
     )
-    agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(
-        observations_json
-    )
-    reward = sum(
-        world_state.rewards[i].getValue() for i in range(len(world_state.rewards))
-    )
-    if is_enemy_alive:
-        mob_health, opp_pos_x, opp_pos_y, opp_pos_z = get_opponent_states(
-            observations_json, enemy_mob
-        )
-        in_range = observations_json["LineOfSight"]["inRange"]
-        distance = math.sqrt(
-            math.pow(pos_x - opp_pos_x, 2)
-            + math.pow(pos_y - opp_pos_y, 2)
-            + math.pow(pos_z - opp_pos_z, 2)
-        )
 
-        attack_cooldown = 0
-        if next_cooldown_completion_time > datetime.now():
-            attack_cooldown = next_cooldown_completion_time - datetime.now()
-
-        gladiator_state = agent_state(
-            enemy=enemy_mob,
-            enemy_health=mob_health,
-            agent_health=agent_health,
-            vertical_motion=vertical_motion,
-            distance_from_enemy=distance,
-            attack_cooldown=attack_cooldown,
-            in_range=in_range,
-        )
-
-        # Updating rewards
-        if curr_state:
-            damage_dealt = curr_state.get_enemy_health() - mob_health
-            reward += damage_dealt * REWARD_PER_DAMAGE_DEALT
-
-        return gladiator_state, reward, done
-    else:
-        # TODO: Set state after mob dies
-        # The mob is no longer an observable entity so this is needed
+    # Quit if mob is dead
+    if mob_health == 0:
         agent_host.sendCommand("quit")
-        done = True
-        return None, reward, done
+
+    # Updating rewards
+    reward = sum(world_state.rewards[i].getValue() for i in range(len(world_state.rewards)))
+    if curr_state:
+        damage_dealt = obs_json["DamageDealt"] - curr_state.get_damage_dealt()
+        reward += damage_dealt * REWARD_PER_DAMAGE_DEALT
+    next_state.set_damage_dealt(obs_json["DamageDealt"])
+
+    return next_state, reward, done
 
 
-def perform_action(agent_host, action, next_cooldown_completion_time):
+def perform_action(agent_host, action, curr_state):
     agent_host.sendCommand(action)
     if action == "attack 1":
         agent_host.sendCommand("attack 0")
-        next_cooldown_completion_time = datetime.now() + timedelta(seconds=0.625)
+        curr_state.set_cooldown_completion_time(datetime.now() + timedelta(seconds=0.625))
     elif action == "jump 1":
         agent_host.sendCommand("jump 0")
-
-    return next_cooldown_completion_time
 
 
 # Add Minecraft Client
@@ -227,7 +218,6 @@ my_client_pool = MalmoPython.ClientPool()
 my_client_pool.add(MalmoPython.ClientInfo("127.0.0.1", 10000))
 
 msPerTick = 50  # 50 ms per tick is default
-next_cooldown_completion_time = datetime.now()
 
 if agent_host.receivedArgument("test"):
     num_reps = 1
@@ -262,11 +252,8 @@ for iRepeat in range(num_reps):
     # initialize mission settings
     total_reward = 0
     curr_state = None
-    curr_state, _, _ = step(
-        agent_host, world_state, curr_state, enemy_mob, next_cooldown_completion_time
-    )
+    curr_state, _, _ = step(agent_host, world_state, curr_state, enemy_mob)
     # main loop
-    curr = datetime.now()
     while world_state.is_mission_running:
         world_state = agent_host.getWorldState()
         reward = 0
@@ -274,16 +261,8 @@ for iRepeat in range(num_reps):
             action = (
                 "attack 1" if random.choice([True, False]) else "move 1"
             )  # TODO: act() should be run here to get the action
-            next_cooldown_completion_time = perform_action(
-                agent_host, action, next_cooldown_completion_time
-            )
-            next_state, reward, done = step(
-                agent_host,
-                world_state,
-                curr_state,
-                enemy_mob,
-                next_cooldown_completion_time,
-            )
+            perform_action(agent_host, action, curr_state)
+            next_state, reward, done = step(agent_host,world_state,curr_state,enemy_mob)
             lookAtMob(world_state, agent_host, enemy_mob)
 
             # remember
