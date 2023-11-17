@@ -12,6 +12,7 @@ mob_list = [("Skeleton", "", 2.0),
                 ("Creeper", "", 1.7),
                 ("Zombie", "", 1.9),
                 ("Silverfish", "", 0.2)]
+mob_set = {"Skeleton":2.0, "Spider":.9, "Creeper":1.7, "Zombie":1.9, "Silverfish":0.2}
        
 
 def angvel(target, current, scale):
@@ -45,19 +46,18 @@ def calcYawAndPitchToMob(target, x, y, z, target_height):
     pitch = math.atan2(((y + 1.625) - (target.y + target_height * 0.9)), distance) * 180.0 / math.pi
     return yaw, pitch
 
-def lookAtMob(json, agent_host): #world state observation data
+def lookAtMob(json, agent_host, name): #world state observation data
     current_x = json.get(u'XPos', 0)
     current_z = json.get(u'ZPos', 0)
     current_y = json.get(u'YPos', 0)
     if "entities" in json:
         entities = [EntityInfo(k["x"], k["y"], k["z"], k["name"]) for k in json["entities"]]
-        target_ent = entities[-1]
+        targets = [e for e in entities if e.name in mob_set]
         print(entities)
-        print(target_ent)
         # Look up height of entity from our table:
-        target = [e for e in mob_list if e[0] == target_ent.name]
-        if target:
-            target_height = target[0][2]
+        if targets:
+            target_ent = targets[0]
+            target_height = mob_set[name]
             # Calculate where to look in order to see it:
             target_yaw, target_pitch = calcYawAndPitchToMob(target_ent, current_x, current_y, current_z, target_height)
             # And point ourselves there:
