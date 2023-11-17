@@ -198,8 +198,10 @@ def step(agent_host, world_state, curr_state, enemy_mob):
     reward = sum(world_state.rewards[i].getValue() for i in range(len(world_state.rewards)))
     if curr_state:
         damage_dealt = obs_json["DamageDealt"] - curr_state.get_damage_dealt()
-        reward += damage_dealt * REWARD_PER_DAMAGE_DEALT
+        damage_taken = obs_json["DamageTaken"] - curr_state.get_damage_taken()
+        reward += (damage_dealt - damage_taken) * REWARD_PER_DAMAGE_DEALT
     next_state.set_damage_dealt(obs_json["DamageDealt"])
+    next_state.set_damage_taken(obs_json["DamageTaken"])
 
     return next_state, reward, done
 
