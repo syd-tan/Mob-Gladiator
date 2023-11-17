@@ -55,8 +55,10 @@ def lookAtMob(json, agent_host): #world state observation data
         print(entities)
         print(target_ent)
         # Look up height of entity from our table:
-        target_height = [e for e in mob_list if e[0] == target_ent.name][0][2]
-        # Calculate where to look in order to see it:
-        target_yaw, target_pitch = calcYawAndPitchToMob(target_ent, current_x, current_y, current_z, target_height)
-        # And point ourselves there:
-        pointTo(agent_host, json, target_pitch, target_yaw, 0.5)
+        target = [e for e in mob_list if e[0] == target_ent.name]
+        if target:
+            target_height = target[0][2]
+            # Calculate where to look in order to see it:
+            target_yaw, target_pitch = calcYawAndPitchToMob(target_ent, current_x, current_y, current_z, target_height)
+            # And point ourselves there:
+            pointTo(agent_host, json, target_pitch, target_yaw, 0.5)
