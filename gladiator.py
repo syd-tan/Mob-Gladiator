@@ -27,9 +27,9 @@ from __future__ import division
 # when and where to attack.
 
 from builtins import range
+from datetime import datetime, timedelta
 from past.utils import old_div
 import MalmoPython
-import datetime
 import random
 import time
 import json
@@ -38,6 +38,7 @@ import math
 import malmoutils
 
 from state import agent_state
+from lookatmob import lookAtMob
 
 malmoutils.fix_print()
 
@@ -107,7 +108,7 @@ def getMissionXML(summary, msPerTick):
             <AgentHandlers>
                 <ContinuousMovementCommands turnSpeedDegs="420"/>
                 <ChatCommands />
-                <MissionQuitCommands/>
+                <MissionQuitCommands quitDescription="enemy_dead"/>
                 <ObservationFromRay/>
                 <RewardForDamagingEntity>
                     <Mob type="Zombie" reward="1"/>
@@ -115,6 +116,10 @@ def getMissionXML(summary, msPerTick):
                     <Mob type="Creeper" reward="1"/>
                     <Mob type="Spider" reward="1"/>
                 </RewardForDamagingEntity>
+                <RewardForMissionEnd rewardForDeath="-3000.0">
+                    <Reward description="out_of_time" reward="-900.0"/>
+                    <Reward description="enemy_dead" reward="1000.0"/>
+                </RewardForMissionEnd>
                 <ObservationFromNearbyEntities>
                     <Range name="entities" xrange="{str(ARENA_WIDTH + 5)}" yrange="10" zrange="{str(ARENA_BREADTH + 5)}" />
                 </ObservationFromNearbyEntities>
@@ -139,7 +144,14 @@ def summon_mob(agent_host):
     chosen_mob = mobs[random.randint(0, len(mobs) - 1)]
     x_coord = random.choice([random.uniform(-9.5, -6), random.uniform(6, 9.5)])
     z_coord = random.choice([random.uniform(-9.5, -6), random.uniform(6, 9.5)])
-    agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord}")
+    if chosen_mob == "Zombie":
+        agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord} {{IsBaby:0}}")
+    elif chosen_mob == "Spider":
+        agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord} {{Passengers:[]}}")
+    else:
+        agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord}")
+
+   
     return chosen_mob
 
 
@@ -176,16 +188,16 @@ def get_agent_states(observations):
             return agent_health, vertical_motion, pos_x, pos_y, pos_z
 
 
-def get_state(agent_host, world_state, enemy_mob, last_attack):
+def get_state(agent_host, world_state, enemy_mob, next_attack_time):
     observations_json = json.loads(world_state.observations[0].text)
-    is_enemy_alive = any(entity["name"] == enemy_mob for entity in observations_json["entities"])
     done = False
+    is_enemy_alive = any(entity["name"] == enemy_mob for entity in observations_json["entities"])
+    agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(
+            observations_json
+        )
     if is_enemy_alive:
         mob_health, opp_pos_x, opp_pos_y, opp_pos_z = get_opponent_states(
             observations_json, enemy_mob
-        )
-        agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(
-            observations_json
         )
         in_range = observations_json["LineOfSight"]["inRange"]
         distance = math.sqrt(
@@ -195,8 +207,8 @@ def get_state(agent_host, world_state, enemy_mob, last_attack):
         )
 
         attack_cooldown = 0
-        if last_attack:
-            attack_cooldown = last_attack - datetime.now()
+        if next_attack_time > datetime.now():
+            attack_cooldown = next_attack_time - datetime.now()
 
         gladiator_state = agent_state(
             enemy=enemy_mob,
@@ -209,9 +221,20 @@ def get_state(agent_host, world_state, enemy_mob, last_attack):
         )
         return gladiator_state, done
     else:
+        # TODO: Set state after mob dies 
         agent_host.sendCommand("quit")
         done = True
         return None, done
+    
+
+
+def act(agent_host, action, next_attack_time):
+    agent_host.sendCommand(action)
+    if action == "attack 1":
+        agent_host.sendCommand("attack 0")
+        next_attack_time = datetime.now() + timedelta(seconds=0.625)
+    elif action == "jump 1":
+        agent_host.sendCommand("jump 0")
 
 
 # Add Minecraft Client
@@ -219,7 +242,7 @@ my_client_pool = MalmoPython.ClientPool()
 my_client_pool.add(MalmoPython.ClientInfo("127.0.0.1", 10000))
 
 msPerTick = 50  # 50 ms per tick is default
-last_attack_time = None
+next_attack_time = datetime.now()
 
 if agent_host.receivedArgument("test"):
     num_reps = 1
@@ -259,16 +282,18 @@ for iRepeat in range(num_reps):
 
     # initialize mission settings
     total_reward = 0
-    curr_state = get_state(agent_host, world_state, enemy_mob, last_attack_time)
-
+    curr_state = get_state(agent_host, world_state, enemy_mob, next_attack_time)
     # main loop
     while world_state.is_mission_running:
         world_state = agent_host.getWorldState()
         if world_state.observations:
-            # action, last_attack_time = act(curr_state, last_attack_time)
-            next_state, done = get_state(agent_host, world_state, enemy_mob, last_attack_time)
+            # action, next_attack_time = act(curr_state, next_attack_time)
+            next_state, done = get_state(agent_host, world_state, enemy_mob, next_attack_time)
+            lookAtMob(world_state, agent_host, enemy_mob)
+
             # remember
             # train
+
             curr_state = next_state
 
         if world_state.number_of_rewards_since_last_state > 0:
@@ -278,9 +303,6 @@ for iRepeat in range(num_reps):
     # mission has ended.
     for error in world_state.errors:
         print("Error:", error.text)
-    if world_state.number_of_rewards_since_last_state > 0:
-        # A reward signal has come in - see what it is:
-        total_reward += world_state.rewards[-1].getValue()
 
     print()
     print("=" * 41)

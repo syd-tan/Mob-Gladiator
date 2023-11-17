@@ -46,12 +46,13 @@ def calcYawAndPitchToMob(target, x, y, z, target_height):
     pitch = math.atan2(((y + 1.625) - (target.y + target_height * 0.9)), distance) * 180.0 / math.pi
     return yaw, pitch
 
-def lookAtMob(json, agent_host, name): #world state observation data
-    current_x = json.get(u'XPos', 0)
-    current_z = json.get(u'ZPos', 0)
-    current_y = json.get(u'YPos', 0)
-    if "entities" in json:
-        entities = [EntityInfo(k["x"], k["y"], k["z"], k["name"]) for k in json["entities"]]
+def lookAtMob(world_state, agent_host, name): #world state observation data
+    observation_json = json.loads(world_state.observations[-1].text)
+    current_x = observation_json.get(u'XPos', 0)
+    current_z = observation_json.get(u'ZPos', 0)
+    current_y = observation_json.get(u'YPos', 0)
+    if "entities" in observation_json:
+        entities = [EntityInfo(k["x"], k["y"], k["z"], k["name"]) for k in observation_json["entities"]]
         targets = [e for e in entities if e.name in mob_set]
         print(entities)
         # Look up height of entity from our table:
@@ -61,4 +62,4 @@ def lookAtMob(json, agent_host, name): #world state observation data
             # Calculate where to look in order to see it:
             target_yaw, target_pitch = calcYawAndPitchToMob(target_ent, current_x, current_y, current_z, target_height)
             # And point ourselves there:
-            pointTo(agent_host, json, target_pitch, target_yaw, 0.5)
+            pointTo(agent_host, observation_json, target_pitch, target_yaw, 0.5)
