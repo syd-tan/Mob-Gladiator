@@ -38,6 +38,7 @@ import math
 import malmoutils
 
 from state import agent_state
+from initialize_mission import initialize_mission
 from lookatmob import lookAtMob
 
 malmoutils.fix_print()
@@ -129,36 +130,6 @@ def getMissionXML(summary, msPerTick):
 
     </Mission>"""
 
-
-def wait_until_opponent_spawns(world_state):
-    while True:
-        time.sleep(0.1)
-        world_state = agent_host.getWorldState()
-        if world_state.observations:
-            observations = json.loads(world_state.observations[0].text)
-            if len(observations["entities"]) > 1:
-                return world_state
-
-def summon_mob(agent_host):
-    mobs = ["Skeleton", "Creeper", "Zombie", "Spider"]
-    chosen_mob = mobs[random.randint(0, len(mobs) - 1)]
-    x_coord = random.choice([random.uniform(-9.5, -6), random.uniform(6, 9.5)])
-    z_coord = random.choice([random.uniform(-9.5, -6), random.uniform(6, 9.5)])
-    if chosen_mob == "Zombie":
-        agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord} {{IsBaby:0}}")
-    elif chosen_mob == "Spider":
-        agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord} {{Passengers:[]}}")
-    else:
-        agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord}")
-
-   
-    return chosen_mob
-
-
-def initialize_mission(agent_host):
-    agent_host.sendCommand("chat /gamerule naturalRegeneration false")
-    return summon_mob(agent_host)
-
 def check_mission_over(agent_host, world_state):
     observations_json = json.loads(world_state.observations[0].text)
     if len(observations_json["entities"]) == 1:
@@ -195,7 +166,7 @@ def step(agent_host, world_state, curr_state, enemy_mob, next_attack_time):
     agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(
             observations_json
         )
-    reward = sum (world_state.rewards[i].getValue() for i in range(len(world_state.rewards)))
+    reward = sum(world_state.rewards[i].getValue() for i in range(len(world_state.rewards)))
     if is_enemy_alive:
         mob_health, opp_pos_x, opp_pos_y, opp_pos_z = get_opponent_states(
             observations_json, enemy_mob
@@ -282,15 +253,9 @@ for iRepeat in range(num_reps):
                 time.sleep(2)
 
     world_state = agent_host.getWorldState()
-    while not world_state.has_mission_begun:
-        time.sleep(0.1)
-        world_state = agent_host.getWorldState()
 
-    # set gamerule and spawn
-    enemy_mob = initialize_mission(agent_host)
-
-    # waits until the opponent fully spawn in order to be detected by malmo
-    world_state = wait_until_opponent_spawns(world_state)
+    # initializes mission
+    enemy_mob, world_state = initialize_mission(agent_host, world_state)
 
     # initialize mission settings
     total_reward = 0
@@ -303,7 +268,6 @@ for iRepeat in range(num_reps):
         if world_state.observations:
             # action, next_attack_time = act(curr_state, next_attack_time)
             next_state, reward, done = step(agent_host, world_state, curr_state, enemy_mob, next_attack_time)
-            print(reward)
             lookAtMob(world_state, agent_host, enemy_mob)
             agent_host.sendCommand("attack 1")
             agent_host.sendCommand("move 1")
@@ -318,6 +282,10 @@ for iRepeat in range(num_reps):
     # mission has ended.
     for error in world_state.errors:
         print("Error:", error.text)
+        
+    if world_state.number_of_rewards_since_last_state > 0:
+        # Keep track of our total reward:
+        total_reward += world_state.rewards[-1].getValue()      
 
     print()
     print("=" * 41)
