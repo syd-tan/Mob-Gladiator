@@ -18,3 +18,12 @@ class agent_state:
         self.distance_from_enemy = distance_from_enemy
         self.attack_cooldown = attack_cooldown
         self.is_in_range = in_range
+
+    def get_enemy_health(self):
+        return self.enemy_health
+
+    def get_agent_health(self):
+        return self.agent_health
+
+    def get_attack_cooldown(self):
+        return self.attack_cooldown

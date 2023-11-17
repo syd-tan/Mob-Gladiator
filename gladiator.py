@@ -49,6 +49,12 @@ malmoutils.parse_command_line(agent_host)
 ARENA_WIDTH = 20
 ARENA_BREADTH = 20
 
+# Reward Constants
+REWARD_PER_DAMAGE_DEALT = 10
+REWARD_ENEMY_DEAD = 1000
+REWARD_PLAYER_DEATH = -3000
+REWARD_OUT_OF_TIME = -1000
+
 
 def getCorner(index, top, left, expand=0, y=0):
     """Return part of the XML string that defines the requested corner"""
@@ -110,15 +116,9 @@ def getMissionXML(summary, msPerTick):
                 <ChatCommands />
                 <MissionQuitCommands quitDescription="enemy_dead"/>
                 <ObservationFromRay/>
-                <RewardForDamagingEntity>
-                    <Mob type="Zombie" reward="1"/>
-                    <Mob type="Skeleton" reward="1"/>
-                    <Mob type="Creeper" reward="1"/>
-                    <Mob type="Spider" reward="1"/>
-                </RewardForDamagingEntity>
-                <RewardForMissionEnd rewardForDeath="-3000.0">
-                    <Reward description="out_of_time" reward="-900.0"/>
-                    <Reward description="enemy_dead" reward="1000.0"/>
+                <RewardForMissionEnd rewardForDeath="{REWARD_PLAYER_DEATH}">
+                    <Reward description="out_of_time" reward="{REWARD_OUT_OF_TIME}"/>
+                    <Reward description="enemy_dead" reward="{REWARD_ENEMY_DEAD}"/>
                 </RewardForMissionEnd>
                 <ObservationFromNearbyEntities>
                     <Range name="entities" xrange="{str(ARENA_WIDTH + 5)}" yrange="10" zrange="{str(ARENA_BREADTH + 5)}" />
@@ -188,13 +188,14 @@ def get_agent_states(observations):
             return agent_health, vertical_motion, pos_x, pos_y, pos_z
 
 
-def get_state(agent_host, world_state, enemy_mob, next_attack_time):
+def step(agent_host, world_state, curr_state, enemy_mob, next_attack_time):
     observations_json = json.loads(world_state.observations[0].text)
     done = False
     is_enemy_alive = any(entity["name"] == enemy_mob for entity in observations_json["entities"])
     agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(
             observations_json
         )
+    reward = sum (world_state.rewards[i].getValue() for i in range(len(world_state.rewards)))
     if is_enemy_alive:
         mob_health, opp_pos_x, opp_pos_y, opp_pos_z = get_opponent_states(
             observations_json, enemy_mob
@@ -219,12 +220,19 @@ def get_state(agent_host, world_state, enemy_mob, next_attack_time):
             attack_cooldown=attack_cooldown,
             in_range=in_range,
         )
-        return gladiator_state, done
+
+        # Updating rewards 
+        if curr_state:
+            damage_dealt = curr_state.get_enemy_health() - mob_health
+            reward += (damage_dealt * REWARD_PER_DAMAGE_DEALT)
+
+        return gladiator_state, reward, done
     else:
         # TODO: Set state after mob dies 
+        # The mob is no longer an observable entity so this is needed
         agent_host.sendCommand("quit")
         done = True
-        return None, done
+        return None, reward, done
     
 
 
@@ -235,6 +243,10 @@ def act(agent_host, action, next_attack_time):
         next_attack_time = datetime.now() + timedelta(seconds=0.625)
     elif action == "jump 1":
         agent_host.sendCommand("jump 0")
+
+    # TODO: UPDATE attack cooldown for next state
+
+    
 
 
 # Add Minecraft Client
@@ -282,23 +294,26 @@ for iRepeat in range(num_reps):
 
     # initialize mission settings
     total_reward = 0
-    curr_state = get_state(agent_host, world_state, enemy_mob, next_attack_time)
+    curr_state = None
+    curr_state, _, _ = step(agent_host, world_state, curr_state, enemy_mob, next_attack_time)
     # main loop
     while world_state.is_mission_running:
         world_state = agent_host.getWorldState()
+        reward = 0
         if world_state.observations:
             # action, next_attack_time = act(curr_state, next_attack_time)
-            next_state, done = get_state(agent_host, world_state, enemy_mob, next_attack_time)
+            next_state, reward, done = step(agent_host, world_state, curr_state, enemy_mob, next_attack_time)
+            print(reward)
             lookAtMob(world_state, agent_host, enemy_mob)
+            agent_host.sendCommand("attack 1")
+            agent_host.sendCommand("move 1")
 
             # remember
             # train
 
             curr_state = next_state
 
-        if world_state.number_of_rewards_since_last_state > 0:
-            # Keep track of our total reward:
-            total_reward += world_state.rewards[-1].getValue()            
+        total_reward += reward            
 
     # mission has ended.
     for error in world_state.errors:

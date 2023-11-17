@@ -54,7 +54,6 @@ def lookAtMob(world_state, agent_host, name): #world state observation data
     if "entities" in observation_json:
         entities = [EntityInfo(k["x"], k["y"], k["z"], k["name"]) for k in observation_json["entities"]]
         targets = [e for e in entities if e.name in mob_set]
-        print(entities)
         # Look up height of entity from our table:
         if targets:
             target_ent = targets[0]
