@@ -160,11 +160,10 @@ def get_agent_states(observations):
             )
             pos_x, pos_y, pos_z = entity["x"], entity["y"], entity["z"]
             return agent_health, vertical_motion, pos_x, pos_y, pos_z
+    return 0, 0, 0, 0
 
 
-def step(agent_host, world_state, curr_state, enemy_mob):
-    # TODO: Figure out permanent solution for final state if either player or mob dies
-    
+def step(agent_host, world_state, curr_state, enemy_mob):    
     obs_json = json.loads(world_state.observations[0].text)
     done = False
     agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(obs_json)
@@ -173,13 +172,13 @@ def step(agent_host, world_state, curr_state, enemy_mob):
     attack_cooldown_remaining = time_diff if time_diff > 0 else 0
 
     mob_health, opp_pos_x, opp_pos_y, opp_pos_z = get_opponent_states(obs_json, enemy_mob)
-    in_range = obs_json["LineOfSight"]["inRange"]
+    in_range = obs_json["LineOfSight"]["inRange"] if "LineOfSight" in obs_json else False
 
     distance = math.sqrt(
         math.pow(pos_x - opp_pos_x, 2)
         + math.pow(pos_y - opp_pos_y, 2)
         + math.pow(pos_z - opp_pos_z, 2)
-    ) if mob_health != 0 else 0
+    ) if mob_health != 0 and agent_health != 0 else 0
 
     next_state = agent_state(
         enemy=enemy_mob,
