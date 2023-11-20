@@ -51,11 +51,12 @@ ARENA_WIDTH = 20
 ARENA_BREADTH = 20
 
 # Reward Constants
-REWARD_PER_DAMAGE_DEALT = 1.5
+REWARD_PER_DAMAGE_DEALT = 2
 REWARD_PER_DAMAGE_TAKEN = -1
-REWARD_ENEMY_DEAD = 1000
+REWRD_PER_ATTACK = -5
+REWARD_ENEMY_DEAD = 2000
 REWARD_PLAYER_DEATH = -3000
-REWARD_OUT_OF_TIME = -1000
+REWARD_OUT_OF_TIME = -2000
 
 
 def getCorner(index, top, left, expand=0, y=0):
@@ -199,7 +200,8 @@ def step(agent_host, world_state, curr_state, enemy_mob):
     if curr_state:
         damage_dealt = obs_json["DamageDealt"] - curr_state.get_damage_dealt()
         damage_taken = obs_json["DamageTaken"] - curr_state.get_damage_taken()
-        reward += damage_dealt * REWARD_PER_DAMAGE_DEALT + damage_taken * REWARD_PER_DAMAGE_TAKEN
+        attacking_negative_reward = REWRD_PER_ATTACK if curr_state.get_action_performed() == "attack 1" else 0
+        reward += damage_dealt * REWARD_PER_DAMAGE_DEALT + damage_taken * REWARD_PER_DAMAGE_TAKEN + attacking_negative_reward
     next_state.set_damage_dealt(obs_json["DamageDealt"])
     next_state.set_damage_taken(obs_json["DamageTaken"])
 
@@ -208,6 +210,7 @@ def step(agent_host, world_state, curr_state, enemy_mob):
 
 def perform_action(agent_host, action, curr_state):
     agent_host.sendCommand(action)
+    curr_state.set_action_performed(action)
     if action == "attack 1":
         agent_host.sendCommand("attack 0")
         curr_state.set_cooldown_completion_time(datetime.now() + timedelta(seconds=0.625))
@@ -265,6 +268,7 @@ for iRepeat in range(num_reps):
             )  # TODO: act() should be run here to get the action
             perform_action(agent_host, action, curr_state)
             next_state, reward, done = step(agent_host,world_state,curr_state,enemy_mob)
+            print(reward)
             lookAtMob(world_state, agent_host, enemy_mob)
 
             # remember

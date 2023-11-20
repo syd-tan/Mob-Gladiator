@@ -24,6 +24,7 @@ class agent_state:
         self.cooldown_completion_time = datetime.now()
         self.damage_dealt = 0
         self.damage_taken = 0
+        self.action_performed = None
 
     def get_enemy_health(self):
         return self.enemy_health
@@ -42,6 +43,9 @@ class agent_state:
     
     def get_damage_taken(self):
         return self.damage_taken
+    
+    def get_action_performed(self):
+        return self.action_performed
 
     def set_cooldown_completion_time(self, cooldown_completion_time):
         self.cooldown_completion_time = cooldown_completion_time
@@ -51,3 +55,6 @@ class agent_state:
     
     def set_damage_taken(self, damage_taken):
         self.damage_taken = damage_taken
+
+    def set_action_performed(self, action):
+        self.action_performed = action
