@@ -12,7 +12,7 @@ mob_list = [("Skeleton", "", 2.0),
                 ("Creeper", "", 1.7),
                 ("Zombie", "", 1.9),
                 ("Silverfish", "", 0.2)]
-mob_set = {"Skeleton":2.0, "Spider":.9, "Creeper":1.7, "Zombie":1.9, "Silverfish":0.2}
+mob_set = {"Skeleton":1.7, "Spider":.6, "Creeper":1.5, "Zombie":1.5}
        
 
 def angvel(target, current, scale):
@@ -28,8 +28,8 @@ def pointTo(agent_host, ob, target_pitch, target_yaw, threshold):
     '''Steer towards the target pitch/yaw, return True when within the given tolerance threshold.'''
     pitch = ob.get(u'Pitch', 0)
     yaw = ob.get(u'Yaw', 0)
-    delta_yaw = angvel(target_yaw, yaw, 50.0)
-    delta_pitch = angvel(target_pitch, pitch, 50.0)
+    delta_yaw = angvel(target_yaw, yaw, 40.0)
+    delta_pitch = angvel(target_pitch, pitch, 40.0)
     agent_host.sendCommand("turn " + str(delta_yaw))    
     agent_host.sendCommand("pitch " + str(delta_pitch))
     if abs(pitch-target_pitch) + abs(yaw-target_yaw) < threshold:
