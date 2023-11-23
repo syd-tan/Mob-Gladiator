@@ -53,8 +53,9 @@ ARENA_BREADTH = 20
 # Reward Constants
 REWARD_PER_DAMAGE_DEALT = 2
 REWARD_PER_DAMAGE_TAKEN = -1
-REWRD_PER_ATTACK = -5
-REWARD_ENEMY_DEAD = 2000
+REWARD_PER_ATTACK = -5
+REWARD_FOR_STAYING_ALIVE_PER_TICK = 0.25
+REWARD_ENEMY_DEAD = 3000
 REWARD_PLAYER_DEATH = -3000
 REWARD_OUT_OF_TIME = -2000
 
@@ -123,6 +124,7 @@ def getMissionXML(summary, msPerTick):
                     <Reward description="out_of_time" reward="{REWARD_OUT_OF_TIME}"/>
                     <Reward description="enemy_dead" reward="{REWARD_ENEMY_DEAD}"/>
                 </RewardForMissionEnd>
+                <RewardForTimeTaken initialReward="0" delta="{REWARD_FOR_STAYING_ALIVE_PER_TICK}" density="PER_TICK" />
                 <ObservationFromNearbyEntities>
                     <Range name="entities" xrange="{str(ARENA_WIDTH + 5)}" yrange="10" zrange="{str(ARENA_BREADTH + 5)}" />
                 </ObservationFromNearbyEntities>
@@ -198,10 +200,16 @@ def step(agent_host, world_state, curr_state, enemy_mob):
     # Updating rewards
     reward = sum(world_state.rewards[i].getValue() for i in range(len(world_state.rewards)))
     if curr_state:
+        # Damage Dealt
         damage_dealt = obs_json["DamageDealt"] - curr_state.get_damage_dealt()
+        damage_dealt_reward = damage_dealt * REWARD_PER_DAMAGE_DEALT
+        # Damage Taken
         damage_taken = obs_json["DamageTaken"] - curr_state.get_damage_taken()
-        attacking_negative_reward = REWRD_PER_ATTACK if curr_state.get_action_performed() == "attack 1" else 0
-        reward += damage_dealt * REWARD_PER_DAMAGE_DEALT + damage_taken * REWARD_PER_DAMAGE_TAKEN + attacking_negative_reward
+        damage_taken_reward = damage_taken * REWARD_PER_DAMAGE_TAKEN
+        # Attack Spamming
+        attacking_negative_reward = REWARD_PER_ATTACK if curr_state.get_action_performed() == "attack 1" else 0
+
+        reward += damage_dealt_reward + damage_taken_reward + attacking_negative_reward
     next_state.set_damage_dealt(obs_json["DamageDealt"])
     next_state.set_damage_taken(obs_json["DamageTaken"])
 
@@ -261,30 +269,31 @@ for iRepeat in range(num_reps):
     # main loop
     while world_state.is_mission_running:
         world_state = agent_host.getWorldState()
+
         reward = 0
+        # retrieve updates in rewards per tick and at missions ends
+        if world_state.rewards:
+            reward += world_state.rewards[-1].getValue()
+        
+        # when the world state has observations, the action and processes are rerun
         if world_state.observations:
             action = (
                 "attack 1" if random.choice([True, False]) else "move 1"
             )  # TODO: act() should be run here to get the action
             perform_action(agent_host, action, curr_state)
-            next_state, reward, done = step(agent_host,world_state,curr_state,enemy_mob)
-            print(reward)
+            next_state, step_reward, done = step(agent_host,world_state,curr_state,enemy_mob)
+            reward += step_reward
             lookAtMob(world_state, agent_host, enemy_mob)
 
             # remember
             # train
 
             curr_state = next_state
-
         total_reward += reward
 
     # mission has ended.
     for error in world_state.errors:
         print("Error:", error.text)
-
-    if world_state.number_of_rewards_since_last_state > 0:
-        # Keep track of our total reward:
-        total_reward += world_state.rewards[-1].getValue()
 
     print()
     print("=" * 41)
