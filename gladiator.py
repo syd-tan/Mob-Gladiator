@@ -312,7 +312,7 @@ for iRepeat in range(num_reps):
     time.sleep(1)  # Give the mod a little time to prepare for the next mission.
 
 # Evaluate: Summary statistics of rewards
-print(f'Mean reward of {num_reps} episodes', np.mean(episode_rewards))
+print(f'Mean reward of {num_reps} episodes:', np.mean(episode_rewards))
 print(f'Std deviation of {num_reps} episodes:', np.std(episode_rewards))
 print('Per monster:')
 max_length_mobname = len(max(rewards_per_monster.keys(), key=len))
