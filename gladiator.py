@@ -29,6 +29,7 @@ from __future__ import division
 from builtins import range
 from datetime import datetime, timedelta
 from past.utils import old_div
+import numpy as np
 import MalmoPython
 import random
 import time
@@ -236,6 +237,9 @@ if agent_host.receivedArgument("test"):
     num_reps = 1
 else:
     num_reps = 30000
+# Evaluate: Initialize episode rewards array
+episode_rewards = [0 for _ in range(num_reps)]
+rewards_per_monster = {}
 
 for iRepeat in range(num_reps):
     mission_xml = getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
@@ -261,6 +265,8 @@ for iRepeat in range(num_reps):
 
     # initializes mission
     enemy_mob, world_state = initialize_mission(agent_host, world_state)
+    # adds mob to rewards per enemy if not initialized
+    if enemy_mob not in rewards_per_monster: rewards_per_monster[enemy_mob] = []
 
     # initialize mission settings
     total_reward = 0
@@ -294,6 +300,9 @@ for iRepeat in range(num_reps):
     # mission has ended.
     for error in world_state.errors:
         print("Error:", error.text)
+    # Evaluate: Change episode reward in array and add reward to records for that mob
+    episode_rewards[iRepeat] = total_reward
+    rewards_per_monster[enemy_mob].append(total_reward)
 
     print()
     print("=" * 41)
@@ -301,3 +310,11 @@ for iRepeat in range(num_reps):
     print("=" * 41)
     print()
     time.sleep(1)  # Give the mod a little time to prepare for the next mission.
+
+# Evaluate: Summary statistics of rewards
+print(f'Mean reward of {num_reps} episodes', np.mean(episode_rewards))
+print(f'Std deviation of {num_reps} episodes:', np.std(episode_rewards))
+print('Per monster:')
+max_length_mobname = len(max(rewards_per_monster.keys(), key=len))
+for mob, r in sorted(rewards_per_monster.items(), key=lambda k: k[0]):
+    print(f'{mob.ljust(max_length_mobname + 1)}| {np.mean(r)} (std. dev {np.std(r)})')
