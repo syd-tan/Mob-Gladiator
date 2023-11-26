@@ -240,6 +240,9 @@ else:
 # Evaluate: Initialize episode rewards array
 episode_rewards = [0 for _ in range(num_reps)]
 rewards_per_monster = {}
+attacks_per_monster = {}
+remaining_agent_hp_per_monster = {}
+winrates_per_monster = {}
 
 for iRepeat in range(num_reps):
     mission_xml = getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
@@ -265,11 +268,16 @@ for iRepeat in range(num_reps):
 
     # initializes mission
     enemy_mob, world_state = initialize_mission(agent_host, world_state)
-    # adds mob to rewards per enemy if not initialized
-    if enemy_mob not in rewards_per_monster: rewards_per_monster[enemy_mob] = []
+    # adds mob to rewards+attacks per enemy if not initialized
+    if enemy_mob not in rewards_per_monster:
+        rewards_per_monster[enemy_mob] = []
+        attacks_per_monster[enemy_mob] = []
+        remaining_agent_hp_per_monster[enemy_mob] = []
+        winrates_per_monster[enemy_mob] = (0, 0)
 
     # initialize mission settings
     total_reward = 0
+    total_attacks = 0
     curr_state = None
     curr_state, _, _ = step(agent_host, world_state, curr_state, enemy_mob)
     # main loop
@@ -286,6 +294,7 @@ for iRepeat in range(num_reps):
             action = (
                 "attack 1" if random.choice([True, False]) else "move 1"
             )  # TODO: act() should be run here to get the action
+            if "attack" in action: total_attacks += 1
             perform_action(agent_host, action, curr_state)
             next_state, step_reward, done = step(agent_host,world_state,curr_state,enemy_mob)
             reward += step_reward
@@ -300,9 +309,15 @@ for iRepeat in range(num_reps):
     # mission has ended.
     for error in world_state.errors:
         print("Error:", error.text)
-    # Evaluate: Change episode reward in array and add reward to records for that mob
+    # Evaluate: Change episode reward in array and add reward/attacks to records for that mob
     episode_rewards[iRepeat] = total_reward
     rewards_per_monster[enemy_mob].append(total_reward)
+    attacks_per_monster[enemy_mob].append(total_attacks)
+    remaining_agent_hp_per_monster[enemy_mob].append(curr_state.agent_health if curr_state.agent_health > 0 else 0)
+    winrates_per_monster[enemy_mob] = (
+        winrates_per_monster[enemy_mob][0] + (1 if curr_state.agent_health > 0 else 0),
+        winrates_per_monster[enemy_mob][1] + 1
+    )
 
     print()
     print("=" * 41)
@@ -312,9 +327,12 @@ for iRepeat in range(num_reps):
     time.sleep(1)  # Give the mod a little time to prepare for the next mission.
 
 # Evaluate: Summary statistics of rewards
+# print(attacks_per_monster)
+# print(remaining_agent_hp_per_monster)
+# print(winrates_per_monster)
 print(f'Mean reward of {num_reps} episodes:', np.mean(episode_rewards))
 print(f'Std deviation of {num_reps} episodes:', np.std(episode_rewards))
 print('Per monster:')
 max_length_mobname = len(max(rewards_per_monster.keys(), key=len))
 for mob, r in sorted(rewards_per_monster.items(), key=lambda k: k[0]):
-    print(f'{mob.ljust(max_length_mobname + 1)}| {np.mean(r)} (std. dev {np.std(r)})')
+    print(f'{mob.ljust(max_length_mobname + 1)}| {np.mean(r)} (std. dev {np.std(r)}, {round(winrates_per_monster[mob][0]/winrates_per_monster[mob][1] * 100, 2)}% winrate)')
