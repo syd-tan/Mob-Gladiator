@@ -14,8 +14,8 @@ def wait_until_opponent_spawns(world_state, agent_host):
 def summon_mob(agent_host):
     mobs = ["Skeleton", "Creeper", "Zombie", "Spider"]
     chosen_mob = mobs[random.randint(0, len(mobs) - 1)]
-    x_coord = random.choice([random.uniform(-7, -5.5), random.uniform(5.5, 7)])
-    z_coord = random.choice([random.uniform(-7, -5.5), random.uniform(5.5, 7)])
+    x_coord = random.choice([random.uniform(-6.25, -5.5), random.uniform(5.5, 6.25)])
+    z_coord = random.choice([random.uniform(-6.25, -5.5), random.uniform(5.5, 6.25)])
     if chosen_mob == "Zombie":
         agent_host.sendCommand(f"chat /summon {chosen_mob} {x_coord} 207 {z_coord} {{IsBaby:0}}")
     elif chosen_mob == "Spider":

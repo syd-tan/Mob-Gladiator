@@ -244,11 +244,6 @@ if __name__ == "__main__":
                 curr_state = next_state
             total_reward += reward
 
-        if iRepeat % SAVE_CHECKPOINT_FREQ == 0:
-            agent.save_checkpoint(iRepeat)
-        if iRepeat % TARGET_UPDATE_FREQ == 0:
-            agent.update_target_network()
-
         # mission has ended.
         for error in world_state.errors:
             print("Error:", error.text)
@@ -260,6 +255,11 @@ if __name__ == "__main__":
             agent.winrates_per_monster[enemy_mob][0] + (1 if curr_state.agent_health > 0 else 0),
             agent.winrates_per_monster[enemy_mob][1] + 1
         )
+
+        if iRepeat % SAVE_CHECKPOINT_FREQ == 0:
+            agent.save_checkpoint(iRepeat)
+        if iRepeat % TARGET_UPDATE_FREQ == 0:
+            agent.update_target_network()
 
         print()
         print("=" * 41)
