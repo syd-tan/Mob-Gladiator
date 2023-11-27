@@ -47,17 +47,17 @@ agent_host = MalmoPython.AgentHost()
 malmoutils.parse_command_line(agent_host)
 
 # Task parameters:
-ARENA_WIDTH = 20
-ARENA_BREADTH = 20
+ARENA_WIDTH = 15
+ARENA_BREADTH = 15
 
 # Reward Constants
-REWARD_PER_DAMAGE_DEALT = 2
+REWARD_PER_DAMAGE_DEALT = 3
 REWARD_PER_DAMAGE_TAKEN = -1
 REWARD_PER_ATTACK = -2
 REWARD_FOR_STAYING_ALIVE_PER_TICK = -0.25
 REWARD_ENEMY_DEAD = 3000
 REWARD_PLAYER_DEATH = -3000
-REWARD_OUT_OF_TIME = -8000
+REWARD_OUT_OF_TIME = -5000
 
 
 def getCorner(index, top, left, expand=0, y=0):
@@ -103,7 +103,7 @@ def getMissionXML(summary, msPerTick):
                     <DrawCuboid {getCorner("1", True, True, y=207)} {getCorner("2", False, False, y=214)} type="air"/>
                 </DrawingDecorator>
                <ServerQuitWhenAnyAgentFinishes />
-               <ServerQuitFromTimeUp timeLimitMs="60000"/>
+               <ServerQuitFromTimeUp timeLimitMs="30000"description="out_of_time"/>
             </ServerHandlers>
         </ServerSection>
 
