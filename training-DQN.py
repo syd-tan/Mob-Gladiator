@@ -1,5 +1,7 @@
 # reference : https://jolly-balaur-c5d.notion.site/Code-DQN-da35f34a0a0c48d4be5fc5b1411bdac7
 
+from pathlib import Path
+import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -48,6 +50,12 @@ class DQN:
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=LEARNING_RATE)
         self.memory = []
         self.epsilon = EPSILON_START
+        # Evaluate: Initialize episode stats
+        # episode_rewards = []
+        self.rewards_per_monster = {}
+        self.attacks_per_monster = {}
+        self.remaining_agent_hp_per_monster = {}
+        self.winrates_per_monster = {}
 
     def act(self, state):
         if random.random() < self.epsilon:
@@ -90,13 +98,33 @@ class DQN:
 
     def save_checkpoint(self, episode):  
         torch.save({
-                      'last_saved_ep': episode,
-                      'optimizer': self.optimizer.state_dict(),
-                      'target_network': self.target_network.state_dict(),
-                      'memory': self.memory,
-                      'epsilon': self.epsilon,
-                      'q_network':self.q_network.state_dict()
-             }, 'training_model.tar')
+            'last_saved_ep': episode,
+            'optimizer': self.optimizer.state_dict(),
+            'target_network': self.target_network.state_dict(),
+            'memory': self.memory,
+            'epsilon': self.epsilon,
+            'q_network':self.q_network.state_dict()
+        }, 'training_model.tar')
+        # Evaluate: Save checkpoint stats to json
+        script_dir = Path(__file__).parent
+        with script_dir.joinpath('stats', f'stats-checkpoint-{episode}.json').open(mode='w') as eval_data:
+            json.dump(
+                {
+                    "rep": episode,
+                    "rewards_per_monster": self.rewards_per_monster,
+                    "attacks_per_monster": self.attacks_per_monster,
+                    "remaining_agent_hp_per_monster": self.remaining_agent_hp_per_monster,
+                    "winrates_per_monster": self.winrates_per_monster
+                },
+                eval_data,
+                indent=2
+            )
+        # Evaluate: Reset rewards structures to free up memory
+        for mob in self.rewards_per_monster.keys():
+            self.rewards_per_monster[mob] = []
+            self.attacks_per_monster[mob] = []
+            self.remaining_agent_hp_per_monster[mob] = []
+            self.winrates_per_monster[mob] = (0, 0)
         
     def load_checkpoint(self, checkpoint):
         if type(checkpoint['epsilon']) == float:
@@ -132,16 +160,16 @@ if __name__ == "__main__":
         num_reps = 1
     else:
         num_reps = 30000
-    
+
     try: 
         checkpoint = torch.load('training_model.tar')
         
         start = checkpoint['last_saved_ep'] + 1
         agent.load_checkpoint(checkpoint)
     except (FileNotFoundError): 
-        start = 0
+        start = 1
 
-    for iRepeat in range(start, num_reps):
+    for iRepeat in range(start, num_reps + 1):
         print(iRepeat)
         mission_xml = gladiator.getMissionXML(
             "Gladiator Begin! #" + str(iRepeat), msPerTick
@@ -169,9 +197,16 @@ if __name__ == "__main__":
 
         # initializes mission
         enemy_mob, world_state = gladiator.initialize_mission(agent_host, world_state)
+        # adds mob to rewards+attacks per enemy if not initialized
+        if enemy_mob not in agent.rewards_per_monster:
+            agent.rewards_per_monster[enemy_mob] = []
+            agent.attacks_per_monster[enemy_mob] = []
+            agent.remaining_agent_hp_per_monster[enemy_mob] = []
+            agent.winrates_per_monster[enemy_mob] = (0, 0)
 
         # initialize mission settings
         total_reward = 0
+        total_attacks = 0
         curr_state = None
         curr_state, _, _ = gladiator.step(
             agent_host, world_state, curr_state, enemy_mob
@@ -190,7 +225,8 @@ if __name__ == "__main__":
                 # action
                 curr_state_dqn = curr_state.get_state()
                 action_index = agent.act(curr_state_dqn)
-                action = actions_list[action_index] 
+                action = actions_list[action_index]
+                if "attack" in action: total_attacks += 1
 
                 # step
                 gladiator.perform_action(agent_host, action, curr_state)
@@ -216,6 +252,15 @@ if __name__ == "__main__":
         # mission has ended.
         for error in world_state.errors:
             print("Error:", error.text)
+        # Evaluate: Change episode reward in array and add reward/attacks to records for that mob
+        agent.episode_rewards[iRepeat] = total_reward
+        agent.rewards_per_monster[enemy_mob].append(total_reward)
+        agent.attacks_per_monster[enemy_mob].append(total_attacks)
+        agent.remaining_agent_hp_per_monster[enemy_mob].append(curr_state.agent_health if curr_state.agent_health > 0 else 0)
+        agent.winrates_per_monster[enemy_mob] = (
+            agent.winrates_per_monster[enemy_mob][0] + (1 if curr_state.agent_health > 0 else 0),
+            agent.winrates_per_monster[enemy_mob][1] + 1
+        )
 
         print()
         print("=" * 41)
