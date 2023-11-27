@@ -29,8 +29,6 @@ from __future__ import division
 from builtins import range
 from datetime import datetime, timedelta
 from past.utils import old_div
-from pathlib import Path
-import numpy as np
 import MalmoPython
 import random
 import time
@@ -55,11 +53,11 @@ ARENA_BREADTH = 20
 # Reward Constants
 REWARD_PER_DAMAGE_DEALT = 2
 REWARD_PER_DAMAGE_TAKEN = -1
-REWARD_PER_ATTACK = -5
-REWARD_FOR_STAYING_ALIVE_PER_TICK = 0.25
+REWARD_PER_ATTACK = -2
+REWARD_FOR_STAYING_ALIVE_PER_TICK = -0.25
 REWARD_ENEMY_DEAD = 3000
 REWARD_PLAYER_DEATH = -3000
-REWARD_OUT_OF_TIME = -2000
+REWARD_OUT_OF_TIME = -8000
 
 
 def getCorner(index, top, left, expand=0, y=0):
@@ -228,139 +226,79 @@ def perform_action(agent_host, action, curr_state):
         agent_host.sendCommand("jump 0")
 
 
-# Add Minecraft Client
-my_client_pool = MalmoPython.ClientPool()
-my_client_pool.add(MalmoPython.ClientInfo("127.0.0.1", 10000))
+if __name__ == "__main__":
+    # Add Minecraft Client
+    my_client_pool = MalmoPython.ClientPool()
+    my_client_pool.add(MalmoPython.ClientInfo("127.0.0.1", 10000))
 
-msPerTick = 50  # 50 ms per tick is default
+    msPerTick = 50  # 50 ms per tick is default
 
-# CHANGE THIS IF CONTINUING EXISTING TRAINING
-start_rep = 1
-if agent_host.receivedArgument("test"):
-    num_reps = 1
-else:
-    num_reps = 30000
-# Evaluate: Initialize episode rewards array
-# episode_rewards = []
-rewards_per_monster = {}
-attacks_per_monster = {}
-remaining_agent_hp_per_monster = {}
-winrates_per_monster = {}
+    if agent_host.receivedArgument("test"):
+        num_reps = 1
+    else:
+        num_reps = 30000
 
-for iRepeat in range(start_rep, num_reps + 1):
-    mission_xml = getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
-    my_mission = MalmoPython.MissionSpec(mission_xml, True)
-    my_mission_record = MalmoPython.MissionRecordSpec()
-    max_retries = 3
-    for retry in range(max_retries):
-        try:
-            # Attempt to start the mission:
-            agent_host.startMission(
-                my_mission, my_client_pool, my_mission_record, 0, "MobGladiator"
-            )
-            break
-        except RuntimeError as e:
-            if retry == max_retries - 1:
-                print("Error starting mission", e)
-                print("Is the game running?")
-                exit(1)
-            else:
-                time.sleep(2)
+    for iRepeat in range(num_reps):
+        mission_xml = getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
+        my_mission = MalmoPython.MissionSpec(mission_xml, True)
+        my_mission_record = MalmoPython.MissionRecordSpec()
+        max_retries = 3
+        for retry in range(max_retries):
+            try:
+                # Attempt to start the mission:
+                agent_host.startMission(
+                    my_mission, my_client_pool, my_mission_record, 0, "MobGladiator"
+                )
+                break
+            except RuntimeError as e:
+                if retry == max_retries - 1:
+                    print("Error starting mission", e)
+                    print("Is the game running?")
+                    exit(1)
+                else:
+                    time.sleep(2)
 
-    world_state = agent_host.getWorldState()
-
-    # initializes mission
-    enemy_mob, world_state = initialize_mission(agent_host, world_state)
-    # adds mob to rewards+attacks per enemy if not initialized
-    if enemy_mob not in rewards_per_monster:
-        rewards_per_monster[enemy_mob] = []
-        attacks_per_monster[enemy_mob] = []
-        remaining_agent_hp_per_monster[enemy_mob] = []
-        winrates_per_monster[enemy_mob] = (0, 0)
-
-    # initialize mission settings
-    total_reward = 0
-    total_attacks = 0
-    curr_state = None
-    curr_state, _, _ = step(agent_host, world_state, curr_state, enemy_mob)
-    # main loop
-    while world_state.is_mission_running:
         world_state = agent_host.getWorldState()
 
-        reward = 0
-        # retrieve updates in rewards per tick and at missions ends
-        if world_state.rewards:
-            reward += world_state.rewards[-1].getValue()
-        
-        # when the world state has observations, the action and processes are rerun
-        if world_state.observations:
-            action = (
-                "attack 1" if random.choice([True, False]) else "move 1"
-            )  # TODO: act() should be run here to get the action
-            if "attack" in action: total_attacks += 1
-            perform_action(agent_host, action, curr_state)
-            next_state, step_reward, done = step(agent_host,world_state,curr_state,enemy_mob)
-            reward += step_reward
-            lookAtMob(world_state, agent_host, enemy_mob)
+        # initializes mission
+        enemy_mob, world_state = initialize_mission(agent_host, world_state)
 
-            # remember
-            # train
+        # initialize mission settings
+        total_reward = 0
+        curr_state = None
+        curr_state, _, _ = step(agent_host, world_state, curr_state, enemy_mob)
+        # main loop
+        while world_state.is_mission_running:
+            world_state = agent_host.getWorldState()
 
-            curr_state = next_state
-        total_reward += reward
+            reward = 0
+            # retrieve updates in rewards per tick and at missions ends
+            if world_state.rewards:
+                reward += world_state.rewards[-1].getValue()
+            
+            # when the world state has observations, the action and processes are rerun
+            if world_state.observations:
+                action = (
+                    "attack 1" if random.choice([True, False]) else "move 1"
+                )  # TODO: act() should be run here to get the action
+                perform_action(agent_host, action, curr_state)
+                next_state, step_reward, done = step(agent_host,world_state,curr_state,enemy_mob)
+                reward += step_reward
+                lookAtMob(world_state, agent_host, enemy_mob)
 
-    # mission has ended.
-    for error in world_state.errors:
-        print("Error:", error.text)
-    # Evaluate: Change episode reward in array and add reward/attacks to records for that mob
-    # episode_rewards.append(total_reward)
-    rewards_per_monster[enemy_mob].append(total_reward)
-    attacks_per_monster[enemy_mob].append(total_attacks)
-    remaining_agent_hp_per_monster[enemy_mob].append(curr_state.agent_health if curr_state.agent_health > 0 else 0)
-    winrates_per_monster[enemy_mob] = (
-        winrates_per_monster[enemy_mob][0] + (1 if curr_state.agent_health > 0 else 0),
-        winrates_per_monster[enemy_mob][1] + 1
-    )
+                # remember
+                # train
 
-    print()
-    print("=" * 41)
-    print("Total score this round:", total_reward)
-    print("=" * 41)
-    print()
+                curr_state = next_state
+            total_reward += reward
 
-    # Evaluate: save stats every n iterations, reset for memory
-    if iRepeat % 100 == 0:
-        script_dir = Path(__file__).parent
-        with script_dir.joinpath('stats', f'stats-checkpoint-{iRepeat}.json').open(mode='w') as eval_data:
-            json.dump(
-                {
-                    "rep": iRepeat,
-                    "rewards_per_monster": rewards_per_monster,
-                    "attacks_per_monster": attacks_per_monster,
-                    "remaining_agent_hp_per_monster": remaining_agent_hp_per_monster,
-                    "winrates_per_monster": winrates_per_monster
-                },
-                eval_data,
-                indent=2
-            )
-            print(f'Saved stats at checkpoint {iRepeat}')
-        for mob in rewards_per_monster.keys():
-            rewards_per_monster[mob] = []
-            attacks_per_monster[mob] = []
-            remaining_agent_hp_per_monster[mob] = []
-            winrates_per_monster[mob] = (0, 0)
-        
+        # mission has ended.
+        for error in world_state.errors:
+            print("Error:", error.text)
 
-    time.sleep(1)  # Give the mod a little time to prepare for the next mission.
-
-# Evaluate: Summary statistics of rewards
-# print(attacks_per_monster)
-# print(remaining_agent_hp_per_monster)
-# print(winrates_per_monster)
-# print(f'Mean reward of {num_reps - start_rep + 1} episodes:', np.mean(episode_rewards))
-# print(f'Std deviation of {num_reps - start_rep + 1} episodes:', np.std(episode_rewards))
-# print('Per monster:')
-# max_length_mobname = len(max(rewards_per_monster.keys(), key=len))
-# for mob, r in sorted(rewards_per_monster.items(), key=lambda k: k[0]):
-#     print(f'{mob.ljust(max_length_mobname + 1)}| {np.mean(r)} (std. dev {np.std(r)}, {round(winrates_per_monster[mob][0]/winrates_per_monster[mob][1] * 100, 2)}% winrate)')
-
+        print()
+        print("=" * 41)
+        print("Total score this round:", total_reward)
+        print("=" * 41)
+        print()
+        time.sleep(1)  # Give the mod a little time to prepare for the next mission.
