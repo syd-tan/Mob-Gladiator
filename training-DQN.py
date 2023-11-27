@@ -11,7 +11,8 @@ import MalmoPython
 import time
 import lookatmob
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 # Define the Q-network
 class QNetwork(nn.Module):
@@ -26,6 +27,7 @@ class QNetwork(nn.Module):
         x = torch.relu(self.fc2(x))
         return self.fc3(x)
 
+
 # Hyperparameters
 BUFFER_SIZE = 10000
 BATCH_SIZE = 64
@@ -35,6 +37,7 @@ EPSILON_MIN = 0.01
 EPSILON_DECAY = 0.995
 LEARNING_RATE = 0.0005
 TARGET_UPDATE_FREQ = 10
+SAVE_CHECKPOINT_FREQ = 100
 
 class DQN:
     def __init__(self, state_size, action_size):
@@ -96,14 +99,28 @@ class DQN:
              }, 'training_model.tar')
         
     def load_checkpoint(self, checkpoint):
-        self.epsilon = checkpoint['epsilon'],
+        if type(checkpoint['epsilon']) == float:
+            self.epsilon = checkpoint['epsilon']
+        else:
+            self.epsilon = checkpoint['epsilon'][0]
         self.target_network.load_state_dict(checkpoint['target_network'])
-        self.optimizer.load_state_dict(checkpoint['state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.memory = checkpoint['memory']
         self.q_network.load_state_dict(checkpoint['q_network'])
 
+
 if __name__ == "__main__":
-    agent = DQN(7, 8)
+    actions_list = [
+        "move 1",
+        "move -1",
+        "move 0",
+        "strafe 1",
+        "strafe -1",
+        "strafe 0",
+        "jump 1",
+        "attack 1",
+    ]
+    agent = DQN(8, 8)
     agent_host = MalmoPython.AgentHost()
     # Add Minecraft Client
     my_client_pool = MalmoPython.ClientPool()
@@ -115,17 +132,21 @@ if __name__ == "__main__":
         num_reps = 1
     else:
         num_reps = 30000
+    
+    try: 
+        checkpoint = torch.load('training_model.tar')
+        
+        start = checkpoint['last_saved_ep'] + 1
+        agent.load_checkpoint(checkpoint)
+    except (FileNotFoundError): 
+        start = 0
 
-    start = 0
     for iRepeat in range(start, num_reps):
-        try: 
-            print
-            checkpoint = torch.load('trained_model.tar')
-            print('START', checkpoint['last_saved_ep'])
-            agent.load_checkpoint(checkpoint)
-        except: 
-            start = 0
-        mission_xml = gladiator.getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
+        print(iRepeat)
+        mission_xml = gladiator.getMissionXML(
+            "Gladiator Begin! #" + str(iRepeat), msPerTick
+        )
+        
         my_mission = MalmoPython.MissionSpec(mission_xml, True)
         my_mission_record = MalmoPython.MissionRecordSpec()
         max_retries = 3
@@ -152,7 +173,9 @@ if __name__ == "__main__":
         # initialize mission settings
         total_reward = 0
         curr_state = None
-        curr_state, _, _ = gladiator.step(agent_host, world_state, curr_state, enemy_mob)
+        curr_state, _, _ = gladiator.step(
+            agent_host, world_state, curr_state, enemy_mob
+        )
         # main loop
         while world_state.is_mission_running:
             world_state = agent_host.getWorldState()
@@ -161,34 +184,38 @@ if __name__ == "__main__":
             # retrieve updates in rewards per tick and at missions ends
             if world_state.rewards:
                 reward += world_state.rewards[-1].getValue()
-            
+
             # when the world state has observations, the action and processes are rerun
             if world_state.observations:
-                # action = (
-                #     "attack 1" if random.choice([True, False]) else "move 1"
-                # )  
-                action = agent.act(curr_state) # TODO: act() should be run here to get the action
+                # action
+                curr_state_dqn = curr_state.get_state()
+                action_index = agent.act(curr_state_dqn)
+                action = actions_list[action_index] 
+
+                # step
                 gladiator.perform_action(agent_host, action, curr_state)
-                next_state, step_reward, done = gladiator.step(agent_host,world_state,curr_state,enemy_mob)
+                next_state, step_reward, done = gladiator.step(agent_host, world_state, curr_state, enemy_mob)
                 reward += step_reward
                 lookatmob.lookAtMob(world_state, agent_host, enemy_mob)
 
                 # remember
-                agent.remember(curr_state, action, reward, next_state, done)
+                next_state_dqn = next_state.get_state()
+                agent.remember(curr_state_dqn, action_index, reward, next_state_dqn, done)
                 # train
                 agent.train()
-
+                
+                # Update state
                 curr_state = next_state
             total_reward += reward
 
+        if iRepeat % SAVE_CHECKPOINT_FREQ == 0:
+            agent.save_checkpoint(iRepeat)
         if iRepeat % TARGET_UPDATE_FREQ == 0:
             agent.update_target_network()
-            
+
         # mission has ended.
         for error in world_state.errors:
             print("Error:", error.text)
-
-        agent.save_checkpoint(iRepeat)
 
         print()
         print("=" * 41)
