@@ -29,6 +29,7 @@ from __future__ import division
 from builtins import range
 from datetime import datetime, timedelta
 from past.utils import old_div
+from pathlib import Path
 import numpy as np
 import MalmoPython
 import random
@@ -233,18 +234,20 @@ my_client_pool.add(MalmoPython.ClientInfo("127.0.0.1", 10000))
 
 msPerTick = 50  # 50 ms per tick is default
 
+# CHANGE THIS IF CONTINUING EXISTING TRAINING
+start_rep = 1
 if agent_host.receivedArgument("test"):
     num_reps = 1
 else:
     num_reps = 30000
 # Evaluate: Initialize episode rewards array
-episode_rewards = [0 for _ in range(num_reps)]
+# episode_rewards = []
 rewards_per_monster = {}
 attacks_per_monster = {}
 remaining_agent_hp_per_monster = {}
 winrates_per_monster = {}
 
-for iRepeat in range(num_reps):
+for iRepeat in range(start_rep, num_reps + 1):
     mission_xml = getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
     my_mission = MalmoPython.MissionSpec(mission_xml, True)
     my_mission_record = MalmoPython.MissionRecordSpec()
@@ -310,7 +313,7 @@ for iRepeat in range(num_reps):
     for error in world_state.errors:
         print("Error:", error.text)
     # Evaluate: Change episode reward in array and add reward/attacks to records for that mob
-    episode_rewards[iRepeat] = total_reward
+    # episode_rewards.append(total_reward)
     rewards_per_monster[enemy_mob].append(total_reward)
     attacks_per_monster[enemy_mob].append(total_attacks)
     remaining_agent_hp_per_monster[enemy_mob].append(curr_state.agent_health if curr_state.agent_health > 0 else 0)
@@ -324,15 +327,40 @@ for iRepeat in range(num_reps):
     print("Total score this round:", total_reward)
     print("=" * 41)
     print()
+
+    # Evaluate: save stats every n iterations, reset for memory
+    if iRepeat % 100 == 0:
+        script_dir = Path(__file__).parent
+        with script_dir.joinpath('stats', f'stats-checkpoint-{iRepeat}.json').open(mode='w') as eval_data:
+            json.dump(
+                {
+                    "rep": iRepeat,
+                    "rewards_per_monster": rewards_per_monster,
+                    "attacks_per_monster": attacks_per_monster,
+                    "remaining_agent_hp_per_monster": remaining_agent_hp_per_monster,
+                    "winrates_per_monster": winrates_per_monster
+                },
+                eval_data,
+                indent=2
+            )
+            print(f'Saved stats at checkpoint {iRepeat}')
+        for mob in rewards_per_monster.keys():
+            rewards_per_monster[mob] = []
+            attacks_per_monster[mob] = []
+            remaining_agent_hp_per_monster[mob] = []
+            winrates_per_monster[mob] = (0, 0)
+        
+
     time.sleep(1)  # Give the mod a little time to prepare for the next mission.
 
 # Evaluate: Summary statistics of rewards
 # print(attacks_per_monster)
 # print(remaining_agent_hp_per_monster)
 # print(winrates_per_monster)
-print(f'Mean reward of {num_reps} episodes:', np.mean(episode_rewards))
-print(f'Std deviation of {num_reps} episodes:', np.std(episode_rewards))
-print('Per monster:')
-max_length_mobname = len(max(rewards_per_monster.keys(), key=len))
-for mob, r in sorted(rewards_per_monster.items(), key=lambda k: k[0]):
-    print(f'{mob.ljust(max_length_mobname + 1)}| {np.mean(r)} (std. dev {np.std(r)}, {round(winrates_per_monster[mob][0]/winrates_per_monster[mob][1] * 100, 2)}% winrate)')
+# print(f'Mean reward of {num_reps - start_rep + 1} episodes:', np.mean(episode_rewards))
+# print(f'Std deviation of {num_reps - start_rep + 1} episodes:', np.std(episode_rewards))
+# print('Per monster:')
+# max_length_mobname = len(max(rewards_per_monster.keys(), key=len))
+# for mob, r in sorted(rewards_per_monster.items(), key=lambda k: k[0]):
+#     print(f'{mob.ljust(max_length_mobname + 1)}| {np.mean(r)} (std. dev {np.std(r)}, {round(winrates_per_monster[mob][0]/winrates_per_monster[mob][1] * 100, 2)}% winrate)')
+
