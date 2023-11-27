@@ -85,6 +85,23 @@ class DQN:
     def update_target_network(self):
         self.target_network.load_state_dict(self.q_network.state_dict())
 
+    def save_checkpoint(self, episode):  
+        torch.save({
+                      'last_saved_ep': episode,
+                      'optimizer': self.optimizer.state_dict(),
+                      'target_network': self.target_network.state_dict(),
+                      'memory': self.memory,
+                      'epsilon': self.epsilon,
+                      'q_network':self.q_network.state_dict()
+             }, 'training_model.tar')
+        
+    def load_checkpoint(self, checkpoint):
+        self.epsilon = checkpoint['epsilon'],
+        self.target_network.load_state_dict(checkpoint['target_network'])
+        self.optimizer.load_state_dict(checkpoint['state_dict'])
+        self.memory = checkpoint['memory']
+        self.q_network.load_state_dict(checkpoint['q_network'])
+
 if __name__ == "__main__":
     agent = DQN(7, 8)
     agent_host = MalmoPython.AgentHost()
@@ -99,7 +116,15 @@ if __name__ == "__main__":
     else:
         num_reps = 30000
 
-    for iRepeat in range(num_reps):
+    start = 0
+    for iRepeat in range(start, num_reps):
+        try: 
+            print
+            checkpoint = torch.load('trained_model.tar')
+            print('START', checkpoint['last_saved_ep'])
+            agent.load_checkpoint(checkpoint)
+        except: 
+            start = 0
         mission_xml = gladiator.getMissionXML("Gladiator Begin! #" + str(iRepeat), msPerTick)
         my_mission = MalmoPython.MissionSpec(mission_xml, True)
         my_mission_record = MalmoPython.MissionRecordSpec()
@@ -162,6 +187,8 @@ if __name__ == "__main__":
         # mission has ended.
         for error in world_state.errors:
             print("Error:", error.text)
+
+        agent.save_checkpoint(iRepeat)
 
         print()
         print("=" * 41)
