@@ -252,7 +252,7 @@ if __name__ == "__main__":
         agent.attacks_per_monster[enemy_mob].append(total_attacks)
         agent.remaining_agent_hp_per_monster[enemy_mob].append(curr_state.agent_health if curr_state.agent_health > 0 else 0)
         agent.winrates_per_monster[enemy_mob] = (
-            agent.winrates_per_monster[enemy_mob][0] + (1 if curr_state.agent_health > 0 else 0),
+            agent.winrates_per_monster[enemy_mob][0] + (1 if curr_state.agent_health > 0 and curr_state.enemy_health == 0 else 0),
             agent.winrates_per_monster[enemy_mob][1] + 1
         )
 
