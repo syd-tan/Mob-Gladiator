@@ -253,7 +253,6 @@ if __name__ == "__main__":
         for error in world_state.errors:
             print("Error:", error.text)
         # Evaluate: Change episode reward in array and add reward/attacks to records for that mob
-        agent.episode_rewards[iRepeat] = total_reward
         agent.rewards_per_monster[enemy_mob].append(total_reward)
         agent.attacks_per_monster[enemy_mob].append(total_attacks)
         agent.remaining_agent_hp_per_monster[enemy_mob].append(curr_state.agent_health if curr_state.agent_health > 0 else 0)
