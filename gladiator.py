@@ -51,13 +51,13 @@ ARENA_WIDTH = 15
 ARENA_BREADTH = 15
 
 # Reward Constants
-REWARD_PER_DAMAGE_DEALT = 3
+REWARD_PER_DAMAGE_DEALT = 6
 REWARD_PER_DAMAGE_TAKEN = -1
-REWARD_PER_ATTACK = -2
-REWARD_FOR_STAYING_ALIVE_PER_TICK = -0.25
-REWARD_ENEMY_DEAD = 3000
-REWARD_PLAYER_DEATH = -3000
-REWARD_OUT_OF_TIME = -5000
+REWARD_PER_ATTACK = -4
+REWARD_FOR_STAYING_ALIVE_PER_TICK = 0
+REWARD_ENEMY_DEAD = 1500
+REWARD_PLAYER_DEATH = -1500
+REWARD_OUT_OF_TIME = -3000
 
 
 def getCorner(index, top, left, expand=0, y=0):
@@ -161,15 +161,15 @@ def get_agent_states(observations):
                 if entity["motionY"] != 0
                 else 0
             )
-            pos_x, pos_y, pos_z = entity["x"], entity["y"], entity["z"]
+            pos_x, pos_y, pos_z = entity["x"], entity["y"], entity["z"], entity["motionX"], entity["motionZ"]
             return agent_health, vertical_motion, pos_x, pos_y, pos_z
-    return 0, 0, 0, 0
+    return 0, 0, 0, 0, 0, 0
 
 
 def step(agent_host, world_state, curr_state, enemy_mob):    
     obs_json = json.loads(world_state.observations[0].text)
     done = False
-    agent_health, vertical_motion, pos_x, pos_y, pos_z = get_agent_states(obs_json)
+    agent_health, vertical_motion, pos_x, pos_y, pos_z, vel_x, vel_z = get_agent_states(obs_json)
 
     time_diff = int((curr_state.get_cooldown_completion_time() - datetime.now()).total_seconds()) if curr_state else 0
     attack_cooldown_remaining = time_diff if time_diff > 0 else 0
@@ -187,6 +187,10 @@ def step(agent_host, world_state, curr_state, enemy_mob):
         enemy=enemy_mob,
         enemy_health=mob_health,
         agent_health=agent_health,
+        agent_x=pos_x,
+        agent_z=pos_z,
+        velocity_x=vel_x,
+        velocity_z=vel_z,
         vertical_motion=vertical_motion,
         distance_from_enemy=distance,
         attack_cooldown_remaining=attack_cooldown_remaining,
@@ -283,6 +287,7 @@ if __name__ == "__main__":
                 )  # TODO: act() should be run here to get the action
                 perform_action(agent_host, action, curr_state)
                 next_state, step_reward, done = step(agent_host,world_state,curr_state,enemy_mob)
+                print(step_reward)
                 reward += step_reward
                 lookAtMob(world_state, agent_host, enemy_mob)
 
