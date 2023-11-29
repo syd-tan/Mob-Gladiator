@@ -148,7 +148,7 @@ if __name__ == "__main__":
         "jump 1",
         "attack 1",
     ]
-    agent = DQN(12, 8)
+    agent = DQN(11, 8)
     agent_host = MalmoPython.AgentHost()
     # Add Minecraft Client
     my_client_pool = MalmoPython.ClientPool()

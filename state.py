@@ -20,6 +20,10 @@ class agent_state:
         self.enemy = self.enemy_mapping[enemy]
         self.enemy_health = enemy_health
         self.agent_health = agent_health
+        self.agent_x = agent_x
+        self.agent_z = agent_z
+        self.velocity_x = velocity_x
+        self.velocity_z = velocity_z
         self.player_vertical_motion = vertical_motion  # 0 - stationary, 1 - upward velocity, -1 - downward velocity
         self.distance_from_enemy = distance_from_enemy
         self.attack_cooldown_remaining = attack_cooldown_remaining
@@ -36,7 +40,10 @@ class agent_state:
             self.enemy,
             self.enemy_health,
             self.agent_health,
-            self.player_vertical_motion,
+            self.agent_x,
+            self.agent_z,
+            self.velocity_x,
+            self.velocity_z,
             self.player_vertical_motion,
             self.distance_from_enemy,
             self.attack_cooldown_remaining,

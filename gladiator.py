@@ -161,8 +161,8 @@ def get_agent_states(observations):
                 if entity["motionY"] != 0
                 else 0
             )
-            pos_x, pos_y, pos_z = entity["x"], entity["y"], entity["z"], entity["motionX"], entity["motionZ"]
-            return agent_health, vertical_motion, pos_x, pos_y, pos_z
+            pos_x, pos_y, pos_z, vel_x, vel_z = entity["x"], entity["y"], entity["z"], entity["motionX"], entity["motionZ"]
+            return agent_health, vertical_motion, pos_x, pos_y, pos_z, vel_x, vel_z
     return 0, 0, 0, 0, 0, 0
 
 
