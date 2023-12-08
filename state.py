@@ -14,6 +14,7 @@ class agent_state:
         distance_from_enemy,
         attack_cooldown_remaining,
         in_range,
+        time_remaining,
     ):
         self.enemy_mapping = {"Zombie": 0, "Skeleton": 1, "Spider": 2, "Creeper": 3}
         # States for DQN
@@ -28,6 +29,7 @@ class agent_state:
         self.distance_from_enemy = distance_from_enemy
         self.attack_cooldown_remaining = attack_cooldown_remaining
         self.is_in_range = int(in_range)
+        self.time_remaining = time_remaining
 
         # Other values to keep track of
         self.cooldown_completion_time = datetime.now()
@@ -48,6 +50,7 @@ class agent_state:
             self.distance_from_enemy,
             self.attack_cooldown_remaining,
             self.is_in_range,
+            self.time_remaining
         ]
 
     def get_enemy_health(self):
@@ -82,3 +85,4 @@ class agent_state:
 
     def set_action_performed(self, action):
         self.action_performed = action
+
