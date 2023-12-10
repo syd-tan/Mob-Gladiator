@@ -1,6 +1,6 @@
 # Minecraft Mob Gladiator #
 
-Minecraft Mob Gladiator uses Malmo (not MalmoEnv) to run the RL training. As such, the instructions to install Malmo must be used. The README from the [Malmo Github](https://github.com/microsoft/malmo) is included below with instructions regarding setting up the environment. General instructions to install the environment and run the model are specified [below](https://github.com/syd-tan/Mob-Gladiator#Malmo-Instructions:~:text=press%20Ctrl%20%2B%20C-,Malm%C3%B6,-%23%20%7B%23Malmo%2DInstructions%7D). Note: For Windows, manual installation will likely be required as automated setup may be outdated. 
+Minecraft Mob Gladiator uses Malmo (not MalmoEnv) to run the RL training. As such, the instructions to install Malmo must be used. The README from the [Malmo Github](https://github.com/microsoft/malmo) is included below with instructions regarding setting up the environment. General instructions to install the environment and run the model are specified below. Note: For Windows, manual installation will likely be required as automated setup may be outdated. 
 
 Follow the [Malmo](https://github.com/microsoft/malmo) instructions to install the environment compatible to your Operating System prior to running this code. 
 
