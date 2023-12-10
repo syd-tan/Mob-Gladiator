@@ -1,4 +1,3 @@
-import MalmoPython
 from collections import namedtuple
 import json 
 import math
