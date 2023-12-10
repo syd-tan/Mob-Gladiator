@@ -1,8 +1,10 @@
 # Minecraft Mob Gladiator #
 
-Minecraft Mob Gladiator uses Malmo (not MalmoEnv) to run the RL training. As such, the instructions to install Malmo must be used. The README from the [Malmo Github](https://github.com/microsoft/malmo) is included below with instructions regarding setting up the environment. General instructions to install the environment and run the model are specified below. Note: For Windows, manual installation will likely be required as automated setup may be outdated. 
+Minecraft Mob Gladiator uses Malmo (not MalmoEnv) to run the RL training. As such, the instructions to install Malmo must be used. The README instructions from the [Malmo Github](https://github.com/microsoft/malmo) are included below in the section called Malmö with full detailed instructions regarding setting up the environment. Simplified and general instructions to install the environment and run the model are provided below.  
 
 Follow the [Malmo](https://github.com/microsoft/malmo) instructions to install the environment compatible to your Operating System prior to running this code. 
+
+Note: For Windows, manual installation will likely be required as automated setup may be outdated.
 
 ## Dependencies ##
 * [Java JDK 8](https://www.oracle.com/java/technologies/javase/javase8-archive-downloads.html)
@@ -27,13 +29,12 @@ pip can be used to install Malmo locally. The following instructions are simplif
     * A subdirectory called ```MalmoPlatform``` will be created that can be run on your platform
     * In this directory, there will be a ```Minecraft``` folder 
 
-If pip can't be used, instructions to download a pre-built version can be found [here](https://github.com/microsoft/malmo#:~:text=Alternatively%2C%20a%20pre%2Dbuilt%20version%20of%20Malmo%20can%20be%20installed%20as%20follows%3A). 
+Alternatively, if pip can't be used, instructions to download a pre-built version can be found [here](https://github.com/microsoft/malmo#:~:text=Alternatively%2C%20a%20pre%2Dbuilt%20version%20of%20Malmo%20can%20be%20installed%20as%20follows%3A). 
 
 ### Launching Minecraft ###
 Once the Malmo files built for your environment are downloaded along with dependencies, the ```Minecraft client``` can be launched by running ```launchClient``` in Malmo's Minecraft folder. 
 
 After Minecraft has been fully launched, Minecraft Mob Gladiator can be run.
-
 
 ### Running Minecraft Mob Gladiator ###
 Take the following steps to run the ```Minecraft Mob Gladiator```. 
