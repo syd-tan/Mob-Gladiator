@@ -14,8 +14,10 @@ Note: For Windows, manual installation will likely be required as automated setu
 * [7 Zip](https://7-zip.org/)
   * Download 64-bit x64
 * [ffmpeg](https://github.com/ottverse/ffmpeg-builds/raw/master/ffmpeg-20210804-65fdc0e589-win64-static.zip) 
-  * Malmo instructions for downloading ffmpeg are outdated
-  * ffmpeg can be downloaded from the link above and instructions for [manual installation](https://github.com/Microsoft/malmo/blob/master/doc/install_windows_manual.md) can be followed to add it to path
+  * Unpack the zip folder into C:\ffmpeg
+  * Add C:\ffmpeg\bin to your PATH [(How To)](https://support.microsoft.com/en-us/topic/how-to-manage-environment-variables-in-windows-xp-5bf6725b-655e-151c-0b55-9a8c9c7f747d)
+  * Note: Malmo instructions for downloading ffmpeg are outdated
+  * ffmpeg can be downloaded from this [link](https://github.com/ottverse/ffmpeg-builds/raw/master/ffmpeg-20210804-65fdc0e589-win64-static.zip) and instructions for [manual installation](https://github.com/Microsoft/malmo/blob/master/doc/install_windows_manual.md) can be followed to add it to path
 #### [Linux](https://github.com/microsoft/malmo/blob/master/doc/install_linux.md) #### 
 #### [Mac](https://github.com/microsoft/malmo/blob/master/doc/install_macosx.md) #### 
 
@@ -25,14 +27,22 @@ pip can be used to install Malmo locally. The following instructions are simplif
   * already in requirements.txt for this project
   * installs Malmo in python with native code package
 *  In your directory of choice, run the following command: 
-  * ```python3 -c "import malmo.minecraftbootstrap; malmo.minecraftbootstrap.launch_minecraft()"```
+  * ```python3 -c "import malmo.minecraftbootstrap; malmo.minecraftbootstrap.download()"```
     * A subdirectory called ```MalmoPlatform``` will be created that can be run on your platform
     * In this directory, there will be a ```Minecraft``` folder 
 
 Alternatively, if pip can't be used, instructions to download a pre-built version can be found [here](https://github.com/microsoft/malmo#:~:text=Alternatively%2C%20a%20pre%2Dbuilt%20version%20of%20Malmo%20can%20be%20installed%20as%20follows%3A). 
 
+### Environment Variable ###
+After the Malmo package is installed locally, the Schemas folder (e.g. ```C:\Malmo\Schemas```) must be set as an environment variable named ```MALMO_XSD_PATH```.
+
 ### Launching Minecraft ###
 Once the Malmo files built for your environment are downloaded along with dependencies, the ```Minecraft client``` can be launched by running ```launchClient``` in Malmo's Minecraft folder. 
+
+Alternatively, if pip was used to install malmo and ```python3 -c "import malmo.minecraftbootstrap; malmo.minecraftbootstrap.download()"``` was run to download the required files, then the following command can be run to launch Minecraft:
+* ```python3 -c "import malmo.minecraftbootstrap; malmo.minecraftbootstrap.launch_minecraft()"``` 
+  * Must be run in your working directory to work (the one containing ```MalmoPlatform/Minecraft```) 
+  * Note: The MALMO_XSD_PATH environment variable is required for this to run
 
 After Minecraft has been fully launched, Minecraft Mob Gladiator can be run.
 
