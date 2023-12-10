@@ -7,10 +7,11 @@ Follow the [Malmo](https://github.com/microsoft/malmo) instructions to install t
 Note: For Windows, manual installation will likely be required as automated setup may be outdated.
 
 ## Dependencies ##
-* [Java JDK 8](https://www.oracle.com/java/technologies/javase/javase8-archive-downloads.html)
+* [Java JDK 8](https://www.oracle.com/java/technologies/downloads/)
+  * Scroll down for Java 8 download - jdk-8u391
 * [Python 3.7](https://www.python.org/downloads/release/python-370/)
 
-#### [Windows Specific](https://github.com/Microsoft/malmo/blob/master/doc/install_windows_manual.md) #### 
+#### [Windows](https://github.com/Microsoft/malmo/blob/master/doc/install_windows_manual.md) #### 
 * [7 Zip](https://7-zip.org/)
   * Download 64-bit x64
 * [ffmpeg](https://github.com/ottverse/ffmpeg-builds/raw/master/ffmpeg-20210804-65fdc0e589-win64-static.zip) 
