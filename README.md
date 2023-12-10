@@ -1,10 +1,10 @@
 # Minecraft Mob Gladiator #
 
-Minecraft Mob Gladiator uses Malmo (not MalmoEnv) to run the RL training. As such, the instructions to install Malmo must be used. The README from the [Malmo Github](https://github.com/microsoft/malmo) is included below with instructions regarding setting up the environment. General instructions to install the environment and run the model are specified below. Note: For Windows, manual installation will likely be required as automated setup may be outdated. 
+Minecraft Mob Gladiator uses Malmo (not MalmoEnv) to run the RL training. As such, the instructions to install Malmo must be used. The README from the [Malmo Github](https://github.com/microsoft/malmo) is included below with instructions regarding setting up the environment. General instructions to install the environment and run the model are specified [below](#Malmo-Instructions). Note: For Windows, manual installation will likely be required as automated setup may be outdated. 
 
-## Setup ##
+Follow the [Malmo](https://github.com/microsoft/malmo) instructions to install the environment compatible to your Operating System prior to running this code. 
 
-### Dependencies ### 
+## Dependencies ##
 * [Java JDK 8](https://www.oracle.com/java/technologies/javase/javase8-archive-downloads.html)
 * [Python 3.7](https://www.python.org/downloads/release/python-370/)
 
@@ -15,9 +15,38 @@ Minecraft Mob Gladiator uses Malmo (not MalmoEnv) to run the RL training. As suc
   * Malmo instructions for downloading ffmpeg are outdated
   * ffmpeg can be downloaded from the link above and instructions for [manual installation](https://github.com/Microsoft/malmo/blob/master/doc/install_windows_manual.md) can be followed to add it to path
 
+## Setup ##
+pip can be used to install Malmo locally. The following instructions are simplified but the full instructions can be found [here](https://github.com/Microsoft/malmo/blob/master/scripts/python-wheel/README.md).
+* ```pip3 install malmo``` 
+  * already in requirements.txt for this project
+  * installs Malmo in python with native code package
+*  In your directory of choice, run the following command: 
+  * ```python3 -c "import malmo.minecraftbootstrap; malmo.minecraftbootstrap.launch_minecraft()"```
+    * A subdirectory called ```MalmoPlatform``` will be created that can be run on your platform
+    * In this directory, there will be a ```Minecraft``` folder 
+
+If pip can't be used, instructions to download a pre-built version can be found [here](https://github.com/microsoft/malmo#:~:text=Alternatively%2C%20a%20pre%2Dbuilt%20version%20of%20Malmo%20can%20be%20installed%20as%20follows%3A). 
+
+### Launching Minecraft ###
+Once the Malmo files built for your environment are downloaded along with dependencies, the ```Minecraft client``` can be launched by running ```launchClient``` in Malmo's Minecraft folder. 
+
+After Minecraft has been fully launched, Minecraft Mob Gladiator can be run.
 
 
-# Malmö #
+### Running Minecraft Mob Gladiator ###
+Take the following steps to run the ```Minecraft Mob Gladiator```. 
+
+1. Clone this repository into your Malmo folder: ```git clone https://github.com/syd-tan/Mob-Gladiator.git```
+2. Install the dependencies from the requirements.txt file: ```pip install -r requirements.txt```
+3. If you have not already, launch Minecraft by going into the Minecraft folder in Malmo and run ```launchClient```
+4. With Minecraft launched, run ```python3 training-DQN.py```
+    1. If ```training_model.tar``` is in your ```Mob_Gladiator``` directory, training will resume from the latest saved point
+    2. To restart training from the beginning, delete ```training_model.tar```
+5. The agent can be seen training against mobs. To stop the program, press ```Ctrl + C``` 
+
+
+
+# Malmö # {#Malmo-Instructions}
 
 Project Malmö is a platform for Artificial Intelligence experimentation and research built on top of Minecraft. We aim to inspire a new generation of research into challenging new problems presented by this unique environment.
 
