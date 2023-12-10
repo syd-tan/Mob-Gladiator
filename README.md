@@ -45,7 +45,7 @@ Take the following steps to run the ```Minecraft Mob Gladiator```.
     1. If ```training_model.tar``` is in your ```Mob_Gladiator``` directory, training will resume from the latest saved point
     2. To restart training from the beginning, delete ```training_model.tar```
 5. The agent can be seen training against mobs. To stop the program, press ```Ctrl + C``` 
-
+6. To run evaluation/graphing of statistics, use `project.ipynb` to graph up to 4400 episodes of checkpoints. The notebook assumes that you have continuous checkpoint files spaced 100 episodes apart for graphing.
 
 
 # Malmö #
