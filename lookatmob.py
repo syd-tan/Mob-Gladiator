@@ -3,8 +3,6 @@ from collections import namedtuple
 import json 
 import math
 from past.utils import old_div
-import random
-import time
 
 EntityInfo = namedtuple('EntityInfo', 'x, y, z, name')
 mob_list = [("Skeleton", "", 2.0),
