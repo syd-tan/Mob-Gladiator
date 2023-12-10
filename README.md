@@ -27,12 +27,12 @@ pip can be used to install Malmo locally. The following instructions are simplif
 * ```pip3 install malmo``` 
   * already in requirements.txt for this project
   * installs Malmo in python with native code package
-*  In your directory of choice, run the following command: 
-  * ```python3 -c "import malmo.minecraftbootstrap; malmo.minecraftbootstrap.download()"```
-    * A subdirectory called ```MalmoPlatform``` will be created that can be run on your platform
-    * In this directory, there will be a ```Minecraft``` folder 
+*  In your directory of choice, run the following command: ```python3 -c "import malmo.minecraftbootstrap; malmo.minecraftbootstrap.download()"```
+  * A subdirectory called ```MalmoPlatform``` will be created that can be run on your platform
+  * In this directory, there will be many folders/files including a ```Minecraft``` and ```Schemas``` folder 
 
-Alternatively, if pip can't be used, instructions to download a pre-built version can be found [here](https://github.com/microsoft/malmo#:~:text=Alternatively%2C%20a%20pre%2Dbuilt%20version%20of%20Malmo%20can%20be%20installed%20as%20follows%3A). 
+Alternatively, if pip can't be used, instructions to download a pre-built version can be found [here](https://github.com/microsoft/malmo#:~:text=Alternatively%2C%20a%20pre%2Dbuilt%20version%20of%20Malmo%20can%20be%20installed%20as%20follows%3A) under the ```Malmo as a native Python wheel``` section. 
+* When downloading from the [pre-built releases](https://github.com/Microsoft/malmo/releases), make sure to download a version with Python 3.7  
 
 ### Environment Variable ###
 After the Malmo package is installed locally, the Schemas folder (e.g. ```C:\Malmo\Schemas```) must be set as an environment variable named ```MALMO_XSD_PATH```.
