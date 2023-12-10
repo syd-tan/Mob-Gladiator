@@ -8,12 +8,14 @@ Follow the [Malmo](https://github.com/microsoft/malmo) instructions to install t
 * [Java JDK 8](https://www.oracle.com/java/technologies/javase/javase8-archive-downloads.html)
 * [Python 3.7](https://www.python.org/downloads/release/python-370/)
 
-#### Windows Specific #### 
+#### [Windows Specific](https://github.com/Microsoft/malmo/blob/master/doc/install_windows_manual.md) #### 
 * [7 Zip](https://7-zip.org/)
   * Download 64-bit x64
 * [ffmpeg](https://github.com/ottverse/ffmpeg-builds/raw/master/ffmpeg-20210804-65fdc0e589-win64-static.zip) 
   * Malmo instructions for downloading ffmpeg are outdated
   * ffmpeg can be downloaded from the link above and instructions for [manual installation](https://github.com/Microsoft/malmo/blob/master/doc/install_windows_manual.md) can be followed to add it to path
+#### [Linux](https://github.com/microsoft/malmo/blob/master/doc/install_linux.md) #### 
+#### [Mac](https://github.com/microsoft/malmo/blob/master/doc/install_macosx.md) #### 
 
 ## Setup ##
 pip can be used to install Malmo locally. The following instructions are simplified but the full instructions can be found [here](https://github.com/Microsoft/malmo/blob/master/scripts/python-wheel/README.md).
